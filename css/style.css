@@ -16,11 +16,12 @@
   --btn-hover: #25282e;
   --frame-border: #1a1c20;
   --panel-bg-extra: none;
-  /* Desktop body halo that sits behind the phone frame. Overridden per
-     theme to track the user's hue slider. Defaults to the original greens. */
-  --body-bg-core: #2a3a2a;
-  --body-bg-mid:  #1a221a;
-  --body-bg-far:  #0d0f12;
+  /* Desktop body halo: only the core tracks the theme hue; mid + far
+     stay near-black so the backdrop reads as "pure black with a hue
+     glow around the phone", not a fully theme-tinted background. */
+  --body-bg-core: #1c2a1c;
+  --body-bg-mid:  #0d0f12;
+  --body-bg-far:  #0a0b0d;
 }
 
 /* ---------- Glass theme ---------- */
@@ -194,10 +195,12 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   display: flex;
   align-items: center;
   justify-content: center;
+  /* Tight central glow that fades to black by ~40% of the radius, so
+     the edges of the viewport stay clean-black regardless of theme. */
   background:
     radial-gradient(ellipse at center,
       var(--body-bg-core) 0%,
-      var(--body-bg-mid)  50%,
+      var(--body-bg-mid)  40%,
       var(--body-bg-far)  100%);
 }
 

@@ -110,24 +110,29 @@ function _applyTheme() {
   const s = p.saturation || 100;
   const b = p.brightness / 100;
   const c = (p.contrast || 100) / 100;
-  // `solidity` is the opacity slider reinterpreted so that 100% genuinely
-  // means fully opaque. At 0% the panel uses its designed glass alphas;
-  // at intermediate values we lerp between designed-alpha and 1.
-  //   final_alpha = designed + (1 - designed) * solidity
-  // so 100% -> 1.0 (solid), regardless of per-element designed values.
-  const solidity = p.opacity / 100;
-  const opacify = (a) => a + (1 - a) * solidity;
+  // Opacity slider is piecewise-mapped so it covers the full range:
+  //   0%  -> fully transparent (heavy glass, can see right through)
+  //   50% -> the per-element designed alpha (classic glass look)
+  //   100% -> fully opaque (solid, matches Default theme)
+  // The 50% midpoint pins "designed glass" so the slider has meaningful
+  // range in both directions instead of bottoming out at the designed alpha.
+  const o = p.opacity / 100;
+  const opacify = (a) => (o <= 0.5)
+    ? a * (o / 0.5)                       // 0% .. 50%: transparent → designed
+    : a + (1 - a) * ((o - 0.5) / 0.5);    // 50% .. 100%: designed → solid
 
   // Accent tracks hue + saturation in every theme.
   frame.style.setProperty("--accent", `hsl(${h}, ${Math.round(s * 0.7)}%, 60%)`);
 
-  // Body halo (the glow behind the phone frame on desktop) tracks hue in
-  // every theme so nothing stays green on purple, etc. Set on the body
-  // because .app-body is the element that paints the gradient.
+  // Body halo: only the CORE (right behind the phone frame) tracks the
+  // theme hue. Mid + far stay dark so the viewport edges read as pure
+  // black with a theme-coloured glow emanating from the app — not the
+  // whole page being tinted.
   const glowSat = Math.max(8, Math.round(s * 0.22));
-  document.body.style.setProperty("--body-bg-core", `hsl(${h}, ${glowSat}%, 17%)`);
-  document.body.style.setProperty("--body-bg-mid",  `hsl(${h}, ${Math.round(glowSat * 0.7)}%, 10%)`);
-  document.body.style.setProperty("--body-bg-far",  `hsl(${h}, ${Math.round(glowSat * 0.4)}%, 5%)`);
+  document.body.style.setProperty("--body-bg-core", `hsl(${h}, ${glowSat}%, 15%)`);
+  // Mid + far intentionally stay dark, independent of hue.
+  document.body.style.setProperty("--body-bg-mid", "#0d0f12");
+  document.body.style.setProperty("--body-bg-far", "#0a0b0d");
 
   if (isGlass) {
     const sat = Math.round(s * 0.3);
