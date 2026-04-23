@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Places</title>
+  <link rel="icon" type="image/png" href="icon.png" />
+  <link rel="apple-touch-icon" href="icon.png" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="app-body">
+  <div class="phone-frame">
+
+    <!-- Top: scene / canvas -->
+    <section class="scene">
+      <div class="scene-inner">
+        <canvas id="room-canvas" width="800" height="800"></canvas>
+      </div>
+      <!-- Zoom controls (top-left of scene) -->
+      <div class="zoom-controls" aria-label="Zoom controls">
+        <button id="zoom-in-btn"    class="zoom-btn" title="Zoom in">+</button>
+        <button id="zoom-out-btn"   class="zoom-btn" title="Zoom out">−</button>
+        <button id="zoom-reset-btn" class="zoom-btn zoom-reset" title="Reset zoom">⟲</button>
+      </div>
+      <!-- Background picker (lives in scene corner so it stays out of the panel) -->
+      <button id="bg-picker-btn" class="bg-picker-btn" title="Change background">🖼</button>
+      <div id="bg-popover" class="bg-popover" aria-hidden="true">
+        <header class="bg-popover-header">Background</header>
+        <div id="bg-list" class="bg-list"></div>
+      </div>
+
+      <!-- Room indicator dots (overlay at the bottom of the scene) -->
+      <div id="room-dots" class="room-dots"></div>
+    </section>
+
+    <!-- Bottom: dark panel that swaps modes -->
+    <section class="panel">
+      <header class="panel-header">
+        <h1 class="brand"><span id="brand-user"></span> <span class="brand-sep">·</span> <span id="room-name" class="room-name" contenteditable="true">Untitled</span></h1>
+        <button id="save-btn" class="btn-pill">SAVE</button>
+      </header>
+
+      <!-- Empty mode: nothing selected -->
+      <div data-mode="empty" class="mode active">
+        <p class="muted small">Tap an item to select. Open the catalog to add new things.</p>
+        <div class="home-tools">
+          <button id="inventory-btn" class="home-tool-btn" title="Inventory">
+            <span class="home-tool-icon">📦</span>
+            <span class="home-tool-label">Inventory</span>
+          </button>
+          <button id="hide-ui-btn" class="home-tool-btn" title="Toggle UI">
+            <span class="home-tool-icon">👁</span>
+            <span class="home-tool-label">Hide canvas UI</span>
+          </button>
+          <button id="screenshot-btn" class="home-tool-btn" title="Screenshot">
+            <span class="home-tool-icon">📷</span>
+            <span class="home-tool-label">Take screenshot</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Selected mode: an object is selected -->
+      <div data-mode="selected" class="mode">
+        <div class="sel-row">
+          <div class="sel-info">
+            <h2 id="sel-name" class="sel-name">Item</h2>
+            <p id="sel-tags" class="muted small"></p>
+          </div>
+          <img id="sel-thumb" class="sel-thumb" alt="" />
+        </div>
+        <div class="action-row sel-actions">
+          <button id="edit-btn" class="btn-pill primary">EDIT</button>
+          <button id="visibility-btn" data-action="toggle-visibility" class="btn-icon" title="Toggle visibility">👁</button>
+          <button data-action="delete" class="btn-icon danger" title="Delete">🗑</button>
+        </div>
+      </div>
+
+      <!-- Edit mode: joystick + 4-button D-pad + action stack + slider -->
+      <div data-mode="edit" class="mode">
+        <div class="edit-top">
+          <!-- Left cluster: analog joystick stacked with 4-button d-pad -->
+          <div class="controller">
+            <div class="joystick" id="joystick" aria-label="Move pad">
+              <div class="joystick-knob" id="joystick-knob"></div>
+            </div>
+            <div class="dpad" aria-label="Nudge pad">
+              <button class="dpad-btn dpad-up"    data-action="nudge" data-dx="0"  data-dy="-1" title="Up">▲</button>
+              <button class="dpad-btn dpad-left"  data-action="nudge" data-dx="-1" data-dy="0"  title="Left">◀</button>
+              <span class="dpad-hub" aria-hidden="true"></span>
+              <button class="dpad-btn dpad-right" data-action="nudge" data-dx="1"  data-dy="0"  title="Right">▶</button>
+              <button class="dpad-btn dpad-down"  data-action="nudge" data-dx="0"  data-dy="1"  title="Down">▼</button>
+            </div>
+          </div>
+
+          <!-- Right side: stacked action buttons (gameboy-style).
+               Order top → bottom: zoom (scale), layer, flip, rotate. -->
+          <div class="action-stack">
+            <button class="round-btn scale-up"   data-action="scale-up"    title="Zoom in (scale up)">+</button>
+            <button class="round-btn scale-down" data-action="scale-down"  title="Zoom out (scale down)">−</button>
+            <button class="icon-btn" data-action="layer-up"   title="Bring forward">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <rect x="3" y="11" width="14" height="3" fill="#5d626c"/>
+                <rect x="3" y="14" width="14" height="3" fill="#3d424a"/>
+                <rect x="3" y="3"  width="14" height="6" fill="#3a7afe" stroke="#fff" stroke-width="0.6"/>
+                <polygon points="10,1 13,4 7,4" fill="#fff"/>
+              </svg>
+            </button>
+            <button class="icon-btn" data-action="layer-down" title="Send backward">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <rect x="3" y="3"  width="14" height="3" fill="#5d626c"/>
+                <rect x="3" y="6"  width="14" height="3" fill="#3d424a"/>
+                <rect x="3" y="11" width="14" height="6" fill="#3a7afe" stroke="#fff" stroke-width="0.6"/>
+                <polygon points="10,19 13,16 7,16" fill="#fff"/>
+              </svg>
+            </button>
+            <button class="icon-btn" data-action="flip-h" title="Flip horizontal">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <polygon points="2,4 9,4 9,16 2,16" fill="#3a7afe"/>
+                <polygon points="11,4 18,4 18,16 11,16" fill="none" stroke="#eaeaea" stroke-dasharray="2 2"/>
+              </svg>
+            </button>
+            <button class="icon-btn" data-action="flip-v" title="Flip vertical">
+              <svg viewBox="0 0 20 20" aria-hidden="true">
+                <polygon points="4,2 16,2 16,9 4,9" fill="#3a7afe"/>
+                <polygon points="4,11 16,11 16,18 4,18" fill="none" stroke="#eaeaea" stroke-dasharray="2 2"/>
+              </svg>
+            </button>
+            <button class="round-btn rotate-btn" data-action="rotate-left"  title="Rotate -90°">⟲</button>
+            <button class="round-btn rotate-btn" data-action="rotate-right" title="Rotate +90°">⟳</button>
+          </div>
+        </div>
+
+        <div class="rotate-row">
+          <label class="muted small" for="rotate-slider">Rotate</label>
+          <input id="rotate-slider" type="range" min="0" max="360" step="1" value="0" />
+          <span id="rotate-readout" class="muted small">0°</span>
+        </div>
+
+        <div class="action-row edit-bottom">
+          <div class="edit-bottom-left">
+            <button data-action="delete" class="btn-icon danger" title="Delete">🗑</button>
+            <button id="undo-btn" data-action="undo" class="btn-icon" title="Undo edits (revert to last saved)">↶</button>
+            <button id="palette-btn" class="btn-icon" title="Color palette">🎨</button>
+          </div>
+          <button id="done-btn" class="btn-pill primary">DONE</button>
+        </div>
+      </div>
+
+      <!-- Palette sub-mode: hue wheel + sat/bright/contrast sliders.
+           Reached from edit mode's 🎨 button; Back returns to edit. -->
+      <div data-mode="palette" class="mode">
+        <header class="palette-header">
+          <button id="palette-back" class="btn-icon" title="Back to edit">◀</button>
+          <h2 class="palette-title">Color</h2>
+          <button id="palette-reset" class="btn-icon" title="Reset to neutral">↺</button>
+        </header>
+
+        <div class="adjust-section">
+          <div class="adjust-row">
+            <label class="muted small" for="adj-hue">Hue</label>
+            <input id="adj-hue" type="range" min="0" max="360" step="1" value="0" data-adj="hue"/>
+            <span id="adj-hue-readout" class="muted small">0°</span>
+          </div>
+          <div class="adjust-row">
+            <label class="muted small" for="adj-sat">Sat</label>
+            <input id="adj-sat" type="range" min="0" max="200" step="1" value="100" data-adj="saturation"/>
+            <span id="adj-sat-readout" class="muted small">100%</span>
+          </div>
+          <div class="adjust-row">
+            <label class="muted small" for="adj-bright">Bright</label>
+            <input id="adj-bright" type="range" min="0" max="200" step="1" value="100" data-adj="brightness"/>
+            <span id="adj-bright-readout" class="muted small">100%</span>
+          </div>
+          <div class="adjust-row">
+            <label class="muted small" for="adj-contrast">Contrast</label>
+            <input id="adj-contrast" type="range" min="0" max="200" step="1" value="100" data-adj="contrast"/>
+            <span id="adj-contrast-readout" class="muted small">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom nav -->
+      <nav class="bottom-nav">
+        <button class="nav-btn active" data-nav="home"     title="Home">🏠</button>
+        <button class="nav-btn"        data-nav="catalog"  title="Catalog">🌐</button>
+        <button class="nav-btn"        data-nav="settings" title="Settings">⚙</button>
+        <button class="nav-btn"        data-nav="logout"   title="Log out">⏻</button>
+      </nav>
+    </section>
+
+    <!-- Backdrop sits behind the drawer to dim the scene when open -->
+    <div id="drawer-backdrop" class="drawer-backdrop"></div>
+
+    <!-- Catalog drawer (slides up from bottom) -->
+    <div id="catalog-drawer" class="drawer" aria-hidden="true">
+      <div class="drawer-handle"></div>
+      <header class="drawer-header">
+        <h2>Catalog</h2>
+        <button id="catalog-close" class="btn-icon" title="Close">✕</button>
+      </header>
+      <div class="drawer-filters">
+        <input id="catalog-search" placeholder="Search..." />
+        <select id="catalog-category">
+          <option value="">All categories</option>
+        </select>
+        <select id="catalog-subcategory">
+          <option value="">All subcategories</option>
+        </select>
+      </div>
+      <div id="catalog-list" class="drawer-grid"></div>
+      <p class="muted small drawer-hint">Tap an item to add it to your room.</p>
+    </div>
+
+    <!-- Settings drawer. Non-admins see an empty-state; admins see the
+         catalog upload form. -->
+    <div id="settings-drawer" class="drawer" aria-hidden="true">
+      <div class="drawer-handle"></div>
+      <header class="drawer-header">
+        <h2>Settings</h2>
+        <button id="settings-close" class="btn-icon" title="Close">✕</button>
+      </header>
+      <div id="settings-body" class="settings-body"></div>
+    </div>
+
+    <!-- Inventory drawer (slides up; lists this room's items) -->
+    <div id="inventory-drawer" class="drawer" aria-hidden="true">
+      <div class="drawer-handle"></div>
+      <header class="drawer-header">
+        <h2>Inventory</h2>
+        <div class="inventory-sort">
+          <button id="inv-sort-asc"  class="btn-icon" title="Sort A→Z">A↓</button>
+          <button id="inv-sort-desc" class="btn-icon" title="Sort Z→A">A↑</button>
+        </div>
+        <button id="inv-delete-room" class="btn-icon danger" title="Delete this room">🗑</button>
+        <button id="inventory-close" class="btn-icon" title="Close">✕</button>
+      </header>
+      <div id="inventory-list" class="inventory-list"></div>
+      <p class="muted small drawer-hint">Each item: focus (center), bring to front, or remove.</p>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
