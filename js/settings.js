@@ -124,15 +124,13 @@ function _applyTheme() {
   // Accent tracks hue + saturation in every theme.
   frame.style.setProperty("--accent", `hsl(${h}, ${Math.round(s * 0.7)}%, 60%)`);
 
-  // Body halo: only the CORE (right behind the phone frame) tracks the
-  // theme hue. Mid + far stay dark so the viewport edges read as pure
-  // black with a theme-coloured glow emanating from the app — not the
-  // whole page being tinted.
-  const glowSat = Math.max(8, Math.round(s * 0.22));
-  document.body.style.setProperty("--body-bg-core", `hsl(${h}, ${glowSat}%, 15%)`);
-  // Mid + far intentionally stay dark, independent of hue.
-  document.body.style.setProperty("--body-bg-mid", "#0d0f12");
-  document.body.style.setProperty("--body-bg-far", "#0a0b0d");
+  // Body halo: only the CORE tracks the theme hue, mid+far stay
+  // near-black. Brighter/more-saturated core than the last pass so the
+  // glow is actually visible as a professional halo behind the phone.
+  const glowSat = Math.max(20, Math.round(s * 0.35));
+  document.body.style.setProperty("--body-bg-core", `hsl(${h}, ${glowSat}%, 22%)`);
+  document.body.style.setProperty("--body-bg-mid",  `hsl(${h}, ${Math.round(glowSat * 0.4)}%, 9%)`);
+  document.body.style.setProperty("--body-bg-far", "#07080a");
 
   if (isGlass) {
     const sat = Math.round(s * 0.3);

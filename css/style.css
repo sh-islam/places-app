@@ -198,13 +198,15 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Tight central glow that fades to black by ~40% of the radius, so
-     the edges of the viewport stay clean-black regardless of theme. */
+  /* Professional halo: a fixed-size ellipse centred on the phone frame
+     (independent of viewport size) so the glow reads as "emanating from
+     the app", not "entire page tinted". Near-black everywhere else. */
   background:
-    radial-gradient(ellipse at center,
+    radial-gradient(ellipse 900px 700px at center,
       var(--body-bg-core) 0%,
-      var(--body-bg-mid)  40%,
-      var(--body-bg-far)  100%);
+      var(--body-bg-mid)  55%,
+      var(--body-bg-far)  100%),
+    var(--body-bg-far);
 }
 
 .phone-frame {
