@@ -119,20 +119,10 @@ input, textarea, [contenteditable] {
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
-/* Mini inline version of the bottom-nav globe so the empty-mode hint
-   can point the user at the actual icon they need to tap. */
+/* Inline globe icon in the empty-mode hint — just the glyph, sitting
+   on the text baseline like a letter. */
 .inline-nav-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--btn-bg);
-  border: 1px solid var(--border);
-  font-size: 14px;
-  line-height: 1;
-  vertical-align: -6px;
+  font-size: 1.15em;
   margin: 0 2px;
 }
 
