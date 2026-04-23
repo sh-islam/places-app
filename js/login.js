@@ -3,6 +3,7 @@
 // Works same-origin (Flask) and cross-origin (GH Pages → Tailscale Funnel).
 
 import { BACKEND_BASE } from "./config.js";
+import { authToken } from "./api.js";
 
 
 const form = document.getElementById("login-form");
@@ -29,9 +30,9 @@ form.addEventListener("submit", async (e) => {
       errorEl.hidden = false;
       return;
     }
-    // Success — go to the app. Relative path works whether we're on the
-    // Flask-served origin (lands at /static/index.html via server redirect
-    // or at ./index.html) or on GitHub Pages.
+    // Persist the bearer token so subsequent fetches include it even when
+    // the browser refuses cross-site session cookies (iOS Safari / ITP).
+    if (data.token) authToken.set(data.token);
     window.location.href = "index.html";
   } catch (err) {
     errorEl.textContent = `Network error: ${err.message}`;

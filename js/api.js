@@ -1,9 +1,10 @@
 // Thin wrappers around our Flask JSON endpoints.
 //
-// Every request uses `credentials: "include"` so the Flask session cookie
-// rides along with cross-origin calls (GitHub Pages frontend → Tailscale-
-// Funnel backend). Same-origin deploys are unaffected — "include" is a
-// superset of "same-origin".
+// Auth uses two channels, whichever the browser lets through:
+//   - Authorization: Bearer <token>  (stateless, survives iOS Safari's
+//     cross-site cookie blocking). Stored in localStorage after login.
+//   - Session cookie (credentials: "include"), same-origin and where the
+//     browser allows cross-site cookies.
 //
 // All paths get prefixed with BACKEND_BASE from config.js, which is "" in
 // same-origin mode and e.g. "https://shad-server.tailnet.ts.net" in prod.
@@ -11,13 +12,32 @@
 import { BACKEND_BASE } from "./config.js";
 
 
+const TOKEN_KEY = "placesAuthToken";
+export const authToken = {
+  get()  { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } },
+  set(t) { try { localStorage.setItem(TOKEN_KEY, t); } catch {} },
+  clear()  { try { localStorage.removeItem(TOKEN_KEY); } catch {} },
+};
+
+
 function url(path) {
   return `${BACKEND_BASE}${path}`;
 }
 
 
+function authHeaders(extra) {
+  const h = { ...(extra || {}) };
+  const t = authToken.get();
+  if (t) h["Authorization"] = `Bearer ${t}`;
+  return h;
+}
+
+
 async function getJson(path) {
-  const res = await fetch(url(path), { credentials: "include" });
+  const res = await fetch(url(path), {
+    credentials: "include",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
   return res.json();
 }
@@ -27,7 +47,7 @@ async function postJson(path, body) {
   const res = await fetch(url(path), {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
@@ -52,6 +72,7 @@ export const api = {
     const res = await fetch(url(`/api/rooms/${index}`), {
       method: "DELETE",
       credentials: "include",
+      headers: authHeaders(),
     });
     if (!res.ok) throw new Error(`DELETE /api/rooms/${index} failed: ${res.status}`);
     return res.json();
@@ -73,6 +94,7 @@ export const api = {
     const res = await fetch(url("/api/catalog/upload"), {
       method: "POST",
       credentials: "include",
+      headers: authHeaders(),
       body: fd,
     });
     if (!res.ok) {

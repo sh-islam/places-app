@@ -1,7 +1,7 @@
 // Entry point. Loads data, wires modules together, kicks off first render.
 
 import { state, markDirty } from "./state.js";
-import { api } from "./api.js";
+import { api, authToken } from "./api.js";
 import { preloadAll } from "./images.js";
 import { initCanvas, render } from "./canvas.js";
 import { initCatalog } from "./catalog.js";
@@ -19,8 +19,10 @@ async function boot() {
   try {
     me = await api.me();
   } catch (err) {
-    // No session → kick to the login page. This matters for the GH Pages
-    // build: there's no server-side redirect on 401, so we handle it here.
+    // No valid session/token → kick to the login page. This matters for
+    // the GH Pages build: there's no server-side redirect on 401, so we
+    // handle it here. Stale token cleared so the next login writes a fresh one.
+    authToken.clear();
     window.location.href = "login.html";
     return;
   }
@@ -172,7 +174,10 @@ function _onNavClick(evt) {
     setMode("empty");
     render();
   } else if (nav === "logout") {
-    api.logout().finally(() => { window.location.href = "login.html"; });
+    api.logout().finally(() => {
+      authToken.clear();
+      window.location.href = "login.html";
+    });
   }
 }
 
