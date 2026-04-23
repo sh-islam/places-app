@@ -16,6 +16,11 @@
   --btn-hover: #25282e;
   --frame-border: #1a1c20;
   --panel-bg-extra: none;
+  /* Desktop body halo that sits behind the phone frame. Overridden per
+     theme to track the user's hue slider. Defaults to the original greens. */
+  --body-bg-core: #2a3a2a;
+  --body-bg-mid:  #1a221a;
+  --body-bg-far:  #0d0f12;
 }
 
 /* ---------- Glass theme ---------- */
@@ -114,8 +119,46 @@ input, textarea, [contenteditable] {
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
-.login-card h1 { margin: 0 0 4px 0; font-size: 28px; letter-spacing: 2px; }
-.login-icon { display: block; width: 80px; height: 80px; margin: 0 auto 12px; object-fit: contain; }
+.login-card h1 { margin: 0 0 4px 0; font-size: 28px; letter-spacing: 2px; text-align: center; }
+.login-card > .muted { text-align: center; }
+.login-icon { display: block; width: 160px; height: 160px; margin: 0 auto 12px; object-fit: contain; }
+
+/* Modern thin floating-looking scrollbars for the panels that scroll.
+   Works on Firefox (scrollbar-width/color) and Chromium (::-webkit-*).
+   Transparent track keeps the "floating" illusion. */
+.drawer-grid,
+.inventory-list,
+.settings-body,
+.bg-list,
+.scene-inner,
+.catalog-list {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+.drawer-grid::-webkit-scrollbar,
+.inventory-list::-webkit-scrollbar,
+.settings-body::-webkit-scrollbar,
+.bg-list::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.drawer-grid::-webkit-scrollbar-track,
+.inventory-list::-webkit-scrollbar-track,
+.settings-body::-webkit-scrollbar-track,
+.bg-list::-webkit-scrollbar-track { background: transparent; }
+.drawer-grid::-webkit-scrollbar-thumb,
+.inventory-list::-webkit-scrollbar-thumb,
+.settings-body::-webkit-scrollbar-thumb,
+.bg-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+.drawer-grid::-webkit-scrollbar-thumb:hover,
+.inventory-list::-webkit-scrollbar-thumb:hover,
+.settings-body::-webkit-scrollbar-thumb:hover,
+.bg-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
 .login-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
 .login-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .login-form button {
@@ -143,7 +186,10 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(ellipse at center, #2a3a2a 0%, #1a221a 50%, #0d0f12 100%);
+    radial-gradient(ellipse at center,
+      var(--body-bg-core) 0%,
+      var(--body-bg-mid)  50%,
+      var(--body-bg-far)  100%);
 }
 
 .phone-frame {

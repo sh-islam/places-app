@@ -110,37 +110,55 @@ function _applyTheme() {
   const s = p.saturation || 100;
   const b = p.brightness / 100;
   const c = (p.contrast || 100) / 100;
-  const o = p.opacity / 100;
+  // `solidity` is the opacity slider reinterpreted so that 100% genuinely
+  // means fully opaque. At 0% the panel uses its designed glass alphas;
+  // at intermediate values we lerp between designed-alpha and 1.
+  //   final_alpha = designed + (1 - designed) * solidity
+  // so 100% -> 1.0 (solid), regardless of per-element designed values.
+  const solidity = p.opacity / 100;
+  const opacify = (a) => a + (1 - a) * solidity;
 
-  // Accent color from hue + saturation
+  // Accent tracks hue + saturation in every theme.
   frame.style.setProperty("--accent", `hsl(${h}, ${Math.round(s * 0.7)}%, 60%)`);
+
+  // Body halo (the glow behind the phone frame on desktop) tracks hue in
+  // every theme so nothing stays green on purple, etc. Set on the body
+  // because .app-body is the element that paints the gradient.
+  const glowSat = Math.max(8, Math.round(s * 0.22));
+  document.body.style.setProperty("--body-bg-core", `hsl(${h}, ${glowSat}%, 17%)`);
+  document.body.style.setProperty("--body-bg-mid",  `hsl(${h}, ${Math.round(glowSat * 0.7)}%, 10%)`);
+  document.body.style.setProperty("--body-bg-far",  `hsl(${h}, ${Math.round(glowSat * 0.4)}%, 5%)`);
 
   if (isGlass) {
     const sat = Math.round(s * 0.3);
     const satHi = Math.round(s * 0.4);
     const satLo = Math.round(s * 0.2);
-    // Contrast scales lightness spread: high contrast → darker darks, lighter lights
     const cl = (base) => Math.min(100, Math.max(0, Math.round((base - 10) * c + 10) * b));
-    const bg = (l, a) => `hsla(${h}, ${sat}%, ${cl(l)}%, ${a * o})`;
-    frame.style.setProperty("--bg-panel", bg(8, 0.7));
-    frame.style.setProperty("--bg-nav", bg(5, 0.75));
+    const bg = (l, a) => `hsla(${h}, ${sat}%, ${cl(l)}%, ${opacify(a)})`;
+    frame.style.setProperty("--bg-panel",   bg(8,  0.7));
+    frame.style.setProperty("--bg-nav",     bg(5,  0.75));
     frame.style.setProperty("--bg-surface", bg(11, 0.75));
-    frame.style.setProperty("--bg-card", bg(16, 0.55));
-    frame.style.setProperty("--bg-input", bg(6, 0.65));
+    frame.style.setProperty("--bg-card",    bg(16, 0.55));
+    frame.style.setProperty("--bg-input",   bg(6,  0.65));
     const borderL = Math.min(100, Math.round(50 * c));
-    frame.style.setProperty("--border", `hsla(${h}, ${satHi}%, ${borderL}%, ${0.25 * o})`);
-    frame.style.setProperty("--border-accent", `hsla(${h}, ${satHi}%, ${Math.min(100, borderL + 5)}%, ${0.35 * o})`);
-    frame.style.setProperty("--btn-bg", `hsla(${h}, ${satLo}%, 90%, ${0.06 * o * c})`);
-    frame.style.setProperty("--btn-hover", `hsla(${h}, ${satLo}%, 90%, ${0.1 * o * c})`);
-    frame.style.setProperty("--frame-border", `hsla(${h}, ${satHi}%, ${borderL}%, ${0.3 * o})`);
-    // Opaque version for scene divider (no green bleed-through)
-    frame.style.setProperty("--scene-border", `hsl(${h}, ${sat}%, ${cl(8)}%)`);
+    frame.style.setProperty("--border",        `hsla(${h}, ${satHi}%, ${borderL}%, ${opacify(0.25)})`);
+    frame.style.setProperty("--border-accent", `hsla(${h}, ${satHi}%, ${Math.min(100, borderL + 5)}%, ${opacify(0.35)})`);
+    frame.style.setProperty("--btn-bg",        `hsla(${h}, ${satLo}%, 90%, ${opacify(0.06 * c)})`);
+    frame.style.setProperty("--btn-hover",     `hsla(${h}, ${satLo}%, 90%, ${opacify(0.10 * c)})`);
+    frame.style.setProperty("--frame-border",  `hsla(${h}, ${satHi}%, ${borderL}%, ${opacify(0.30)})`);
+    frame.style.setProperty("--scene-border",  `hsl(${h}, ${sat}%, ${cl(8)}%)`);
   } else {
-    // Default theme — reset inline styles so :root vars take effect
+    // Default theme is always fully solid. Reset inline styles so :root
+    // vars take effect, and visually disable the opacity slider.
     const vars = ["--bg-panel","--bg-nav","--bg-surface","--bg-card","--bg-input",
       "--border","--border-accent","--btn-bg","--btn-hover","--frame-border","--scene-border"];
     vars.forEach((v) => frame.style.removeProperty(v));
   }
+
+  // The opacity slider only has an effect in Glass theme; disable it in
+  // Default so the UI makes it obvious moving it does nothing.
+  const opacitySlider = document.getElementById("theme-opacity");
+  if (opacitySlider) opacitySlider.disabled = !isGlass;
 }
 
 function _persistPrefs() {

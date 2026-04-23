@@ -127,7 +127,10 @@ function _buildItemCard(item) {
     del.textContent = "×"; // ×
     del.addEventListener("click", async (e) => {
       e.stopPropagation(); // don't also fire the card's tap-to-add
-      if (!window.confirm(`Delete "${itemDisplayName(item.name)}" from the catalog?`)) return;
+      const warn =
+        `"${itemDisplayName(item.name)}" will be deleted from the server ` +
+        `(moved to the Deleted/ folder — you can restore manually). Continue?`;
+      if (!window.confirm(warn)) return;
       try {
         await api.deleteCatalogItem(item.url);
         // Full refresh so filters + tiles reflect the removal.

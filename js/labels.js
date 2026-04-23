@@ -10,13 +10,11 @@ export function toLabel(key) {
 
 
 // Item display name:
-//   - Drop leading `admin_` prefix (admin-only items are displayed to admins
-//     without exposing the access marker in the UI).
-//   - Drop trailing `_<digits>` suffix (admin_girl_blue_dress_2 -> "Girl Blue Dress").
-//   - Title Case. Multiple files can share the same display name; that's fine.
+//   - Drop trailing `_<digits>` suffix (bush_2 -> "Bush").
+//   - Title Case. The `admin_` prefix is KEPT so superadmin-only items
+//     display as "Admin Girl Blue Dress" — a visible reminder that it's
+//     the restricted-tier content (only superadmins ever see these).
 export function itemDisplayName(rawName) {
-  const stripped = (rawName || "")
-    .replace(/^admin_/, "")
-    .replace(/_\d+$/, "");
+  const stripped = (rawName || "").replace(/_\d+$/, "");
   return toLabel(stripped);
 }
