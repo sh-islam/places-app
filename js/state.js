@@ -3,6 +3,7 @@
 export const state = {
   username: null,
   isAdmin: false,
+  isSuperadmin: false,
   catalog: [],            // [{asset_id, name, category, tags, url, type}]
   categories: [],
 

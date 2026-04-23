@@ -52,7 +52,61 @@ export function initControls() {
   _initRotationSlider();
   _initPalette();
   _initZoomButtons();
+  _initRenameButton();
   setInterval(_updateSaveLabel, 400);
+}
+
+
+// ---------- Rename catalog item (admin) ----------
+
+function _initRenameButton() {
+  const btn = document.getElementById("rename-btn");
+  if (!btn) return;
+  btn.addEventListener("click", async () => {
+    if (!state.isAdmin) return;
+    const id = state.selectedId;
+    const obj = id ? findObject(id) : null;
+    if (!obj) return;
+    const current = (obj.name || "");
+    const input = window.prompt(
+      "New name (lowercase, spaces become underscores):",
+      current
+    );
+    if (!input) return;
+    const newName = input.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    if (!newName || newName === current) return;
+    const oldUrl = obj.url;
+    try {
+      const { url: newUrl, name, asset_id } =
+        await api.renameCatalogItem(oldUrl, newName);
+      // Mirror the backend's room sweep in local state so the canvas +
+      // panel reflect the rename without a full reload. Backend has
+      // already written the same changes to every user's saved rooms.
+      const parts = newUrl.replace(/^\/catalog\//, "").split("/");
+      const [category, subcategory] = parts;
+      for (const room of state.rooms) {
+        for (const o of room.objects || []) {
+          if (o.url === oldUrl) {
+            o.url = newUrl;
+            o.name = name;
+            o.asset_id = asset_id;
+            o.tags = [category, subcategory, name];
+          }
+        }
+      }
+      // Refresh the catalog listing so the renamed tile appears under its
+      // new name.
+      const c = await api.catalog();
+      state.catalog = c.items;
+      state.categories = c.categories;
+      const { rebuildCatalog } = await import("./catalog.js");
+      rebuildCatalog();
+      refreshForSelection();
+      render();
+    } catch (err) {
+      alert(`Rename failed: ${err.message}`);
+    }
+  });
 }
 
 

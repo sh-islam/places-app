@@ -59,6 +59,10 @@ export const api = {
 
   logout: () => postJson("/logout", {}),
 
+  deleteCatalogItem: (itemUrl) => postJson("/api/catalog/delete", { url: itemUrl }),
+  renameCatalogItem: (itemUrl, newName) =>
+    postJson("/api/catalog/rename", { url: itemUrl, new_name: newName }),
+
   uploadCatalogItem: async ({ image, category, subcategory, name, overwrite }) => {
     const fd = new FormData();
     fd.append("image", image, `${name}.png`);

@@ -6,6 +6,7 @@ import { toLabel, itemDisplayName } from "./labels.js";
 import { addCatalogItemAtCenter } from "./canvas.js";
 import { closeDrawer } from "./drawer.js";
 import { assetUrl } from "./config.js";
+import { api } from "./api.js";
 
 
 let listEl = null;
@@ -116,6 +117,30 @@ function _buildItemCard(item) {
   tags.className = "tags";
   tags.textContent = `${toLabel(item.category)} · ${toLabel(item.subcategory)}`;
   card.appendChild(tags);
+
+  // Admin-only delete icon. Visible via CSS when body.is-admin is set.
+  if (state.isAdmin) {
+    const del = document.createElement("button");
+    del.className = "catalog-item-del";
+    del.type = "button";
+    del.title = "Delete this item from the catalog";
+    del.textContent = "×"; // ×
+    del.addEventListener("click", async (e) => {
+      e.stopPropagation(); // don't also fire the card's tap-to-add
+      if (!window.confirm(`Delete "${itemDisplayName(item.name)}" from the catalog?`)) return;
+      try {
+        await api.deleteCatalogItem(item.url);
+        // Full refresh so filters + tiles reflect the removal.
+        const fresh = await api.catalog();
+        state.catalog = fresh.items;
+        state.categories = fresh.categories;
+        rebuildCatalog();
+      } catch (err) {
+        alert(`Delete failed: ${err.message}`);
+      }
+    });
+    card.appendChild(del);
+  }
 
   // Desktop drag-and-drop
   card.addEventListener("dragstart", (e) => {

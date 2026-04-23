@@ -26,6 +26,11 @@ async function boot() {
   }
   state.username = me.username;
   state.isAdmin = Boolean(me.is_admin);
+  state.isSuperadmin = Boolean(me.is_superadmin);
+  // CSS toggles admin-only UI affordances (delete icon on tiles, rename
+  // button in Selected panel) via body.is-admin / body.is-superadmin.
+  document.body.classList.toggle("is-admin",      state.isAdmin);
+  document.body.classList.toggle("is-superadmin", state.isSuperadmin);
 
   const brandUserEl = document.getElementById("brand-user");
   if (brandUserEl) brandUserEl.textContent = me.username;

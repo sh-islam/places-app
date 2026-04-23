@@ -115,6 +115,7 @@ input, textarea, [contenteditable] {
   box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
 .login-card h1 { margin: 0 0 4px 0; font-size: 28px; letter-spacing: 2px; }
+.login-icon { display: block; width: 80px; height: 80px; margin: 0 auto 12px; object-fit: contain; }
 .login-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
 .login-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .login-form button {
@@ -1213,7 +1214,35 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   padding: 4px 0;
   align-content: start;
 }
+/* Admin-tier UI affordances hidden by default; shown when body has the
+   matching class (set on boot from /api/me). */
+body:not(.is-admin)      .admin-only,
+body:not(.is-admin)      .catalog-item-del,
+body:not(.is-superadmin) .superadmin-only { display: none !important; }
+
+.catalog-item-del {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(200, 40, 40, 0.85);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.catalog-item-del:hover { background: rgba(230, 60, 60, 1); }
+
 .catalog-item {
+  position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: 8px;
