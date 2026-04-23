@@ -15,6 +15,15 @@ import { setMode, refreshForSelection } from "./panel.js";
 
 
 async function boot() {
+  // If login.js tacked a token onto the URL hash (#t=...), adopt it and
+  // clean the URL. This is the safety net for mobile browsers that
+  // occasionally drop localStorage entries across a same-origin navigation.
+  const hashToken = (location.hash.match(/[#&]t=([^&]+)/) || [])[1];
+  if (hashToken) {
+    authToken.set(decodeURIComponent(hashToken));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+
   let me;
   try {
     me = await api.me();

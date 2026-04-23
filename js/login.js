@@ -32,8 +32,15 @@ form.addEventListener("submit", async (e) => {
     }
     // Persist the bearer token so subsequent fetches include it even when
     // the browser refuses cross-site session cookies (iOS Safari / ITP).
-    if (data.token) authToken.set(data.token);
-    window.location.href = "index.html";
+    // Belt-and-suspenders: also pass it via URL hash, so even if
+    // localStorage gets nuked between pages (some mobile browsers do
+    // this unpredictably), index.html's boot can pick it up.
+    if (data.token) {
+      authToken.set(data.token);
+      window.location.href = `index.html#t=${encodeURIComponent(data.token)}`;
+    } else {
+      window.location.href = "index.html";
+    }
   } catch (err) {
     errorEl.textContent = `Network error: ${err.message}`;
     errorEl.hidden = false;
