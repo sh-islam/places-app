@@ -3,6 +3,7 @@
 import { state, markDirty } from "./state.js";
 import { loadImage } from "./images.js";
 import { assetUrl } from "./config.js";
+import { api } from "./api.js";
 
 
 let pickerBtn = null;
@@ -29,8 +30,7 @@ export async function initBackgrounds({ button, popover, list, onChange }) {
 
 async function _fetchBackgrounds() {
   try {
-    const res = await fetch("/api/backgrounds", { credentials: "same-origin" });
-    const data = await res.json();
+    const data = await api.backgrounds();
     backgrounds = data.items || [];
   } catch (err) {
     console.warn("Failed to fetch backgrounds", err);
