@@ -119,9 +119,11 @@ input, textarea, [contenteditable] {
   border-radius: 12px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
+.login-card { width: 360px; text-align: center; }
 .login-card h1 { margin: 0 0 4px 0; font-size: 28px; letter-spacing: 2px; text-align: center; }
 .login-card > .muted { text-align: center; }
-.login-icon { display: block; width: 160px; height: 160px; margin: 0 auto 12px; object-fit: contain; }
+.login-form label { text-align: left; } /* re-align form labels only */
+.login-icon { display: block; width: 240px; height: 240px; margin: 0 auto 12px; object-fit: contain; }
 
 /* Modern thin floating-looking scrollbars for the panels that scroll.
    Works on Firefox (scrollbar-width/color) and Chromium (::-webkit-*).
