@@ -436,6 +436,15 @@ function _drawObject(obj) {
     ctx.transform(1, sh.ky || 0, sh.kx || 0, 1, 0, 0);
   }
 
+  // Selected item: paint a soft accent-tinted shadow that hugs the
+  // image's alpha silhouette (no outline, just a halo around the actual
+  // painted pixels). ctx.shadowColor + shadowBlur on drawImage uses the
+  // image's alpha channel as the shadow shape, so transparent PNG areas
+  // don't glow.
+  if (obj.id === state.selectedId) {
+    ctx.shadowColor = "rgba(80, 150, 255, 0.85)";
+    ctx.shadowBlur = 24;
+  }
   ctx.drawImage(source, -w / 2, -h / 2, w, h);
   ctx.restore();
 }
