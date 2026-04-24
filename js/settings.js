@@ -90,7 +90,7 @@ function _themeHTML() {
           <label class="theme-slider-label">Contrast</label>
           <input id="theme-contrast" type="range" min="50" max="200" step="1" value="${p.contrast}" class="theme-range"/>
         </div>
-        <div class="theme-slider-row">
+        <div class="theme-slider-row" id="theme-opacity-row">
           <label class="theme-slider-label">Opacity</label>
           <input id="theme-opacity" type="range" min="20" max="100" step="1" value="${p.opacity}" class="theme-range"/>
         </div>
@@ -158,10 +158,9 @@ function _applyTheme() {
     vars.forEach((v) => frame.style.removeProperty(v));
   }
 
-  // The opacity slider only has an effect in Glass theme; disable it in
-  // Default so the UI makes it obvious moving it does nothing.
-  const opacitySlider = document.getElementById("theme-opacity");
-  if (opacitySlider) opacitySlider.disabled = !isGlass;
+  // Opacity only has an effect in Glass; hide the row entirely in Default.
+  const opacityRow = document.getElementById("theme-opacity-row");
+  if (opacityRow) opacityRow.style.display = isGlass ? "" : "none";
 }
 
 function _persistPrefs() {
