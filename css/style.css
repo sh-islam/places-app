@@ -1513,8 +1513,12 @@ body.adv-editing .adv-zoom-controls { display: flex; }
    +/− do in theirs. */
 .action-stack .round-btn.rotate-btn {
   font-size: 30px;
-  -webkit-text-stroke: 2px currentColor;
-  text-stroke: 2px currentColor;
+  /* Just enough text-stroke to catch ⟲/⟳'s thin symbol-font
+     strokes up to ≈ bold +/−, not so much that they turn into
+     chunky blocks. Tweaked down from 2px after user said 2 read
+     as too thick next to the +/−. */
+  -webkit-text-stroke: 0.75px currentColor;
+  text-stroke: 0.75px currentColor;
   line-height: 1;
 }
 .scale-up   { background: linear-gradient(180deg, #e85a5a, #b03333); }
