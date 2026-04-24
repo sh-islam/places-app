@@ -1219,6 +1219,29 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   object-position: center;
   flex-shrink: 0;
   border-radius: 8px;
+  position: relative;
+  z-index: 2;
+}
+/* Multi-select preview: stack 1–2 additional thumbnails behind the
+   primary with an offset so it reads as a "deck" of items rather
+   than just the single primary pic. */
+.sel-thumb-stack {
+  position: relative;
+  width: 0;
+  height: 0;
+  flex-shrink: 0;
+}
+.sel-thumb-behind {
+  position: absolute;
+  top: calc(var(--i, 1) * -6px);
+  left: calc(var(--i, 1) * 6px);
+  z-index: calc(1 - var(--i, 1));
+  opacity: 0.78;
+  filter: brightness(0.85);
+  pointer-events: none;
+  width: 76px; height: 76px;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
 /* Admin re-categorize section — sits at the bottom of selected-mode,

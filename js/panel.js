@@ -77,6 +77,50 @@ export function getMode() {
 }
 
 
+// Build a small offset stack of thumbnails next to the sel-thumb slot
+// when a multi-selection is active. Reuses the existing #sel-thumb
+// element as the topmost thumb; the 1–2 additional behind-thumbs live
+// in a sibling `.sel-thumb-stack` container that sits just before the
+// single img so CSS can lay them out. Removed again by
+// _clearStackThumbs when the selection drops back to one item.
+function _renderStackThumbs(thumbEl, objs) {
+  if (!thumbEl) return;
+  // Place up to 3 thumbs visually stacked (front img = primary).
+  const picks = [];
+  // Primary at front
+  const primary = objs.find((o) => o.id === state.selectedId) || objs[0];
+  picks.push(primary);
+  for (const o of objs) {
+    if (picks.length >= 3) break;
+    if (!picks.includes(o)) picks.push(o);
+  }
+  thumbEl.src = assetUrl(primary.url);
+  thumbEl.hidden = false;
+  let stack = thumbEl.parentNode.querySelector(".sel-thumb-stack");
+  if (!stack) {
+    stack = document.createElement("div");
+    stack.className = "sel-thumb-stack";
+    thumbEl.parentNode.insertBefore(stack, thumbEl);
+  }
+  stack.innerHTML = "";
+  // Behind thumbs in reverse so the last-rendered sits furthest back.
+  for (let i = picks.length - 1; i >= 1; i--) {
+    const im = document.createElement("img");
+    im.className = "sel-thumb sel-thumb-behind";
+    im.alt = "";
+    im.src = assetUrl(picks[i].url);
+    im.style.setProperty("--i", String(i));
+    stack.appendChild(im);
+  }
+}
+
+function _clearStackThumbs(thumbEl) {
+  if (!thumbEl) return;
+  const stack = thumbEl.parentNode.querySelector(".sel-thumb-stack");
+  if (stack) stack.remove();
+}
+
+
 export function refreshForSelection() {
   // Called after the user clicks/taps something or deselects.
   if (state.selectedId == null) {
@@ -94,12 +138,32 @@ function _refreshSelectedView() {
   const nameEl = document.getElementById("sel-name");
   const tagsEl = document.getElementById("sel-tags");
   const thumbEl = document.getElementById("sel-thumb");
-  if (nameEl) nameEl.textContent = itemDisplayName(obj.name || obj.asset_id);
-  if (tagsEl) {
-    const name = obj.name || obj.asset_id;
-    tagsEl.textContent = obj.tags.filter((t) => t !== name).map(toLabel).join(" · ");
+  const multi = state.selectedIds.size > 1;
+  if (multi) {
+    // Multi-select header: no single name / tags makes sense, so
+    // show the count and a short preview of the first few items.
+    const ids = [...state.selectedIds];
+    const objs = ids.map(findObject).filter(Boolean);
+    if (nameEl) nameEl.textContent = `${objs.length} items selected`;
+    if (tagsEl) {
+      tagsEl.textContent = objs
+        .slice(0, 3)
+        .map((o) => itemDisplayName(o.name || o.asset_id))
+        .join(" · ") + (objs.length > 3 ? ` · +${objs.length - 3}` : "");
+    }
+    _renderStackThumbs(thumbEl, objs);
+  } else {
+    _clearStackThumbs(thumbEl);
+    if (nameEl) nameEl.textContent = itemDisplayName(obj.name || obj.asset_id);
+    if (tagsEl) {
+      const name = obj.name || obj.asset_id;
+      tagsEl.textContent = obj.tags.filter((t) => t !== name).map(toLabel).join(" · ");
+    }
+    if (thumbEl) {
+      thumbEl.hidden = false;
+      thumbEl.src = assetUrl(obj.url);
+    }
   }
-  if (thumbEl) thumbEl.src = assetUrl(obj.url);
   const visBtn = document.getElementById("visibility-btn");
   if (visBtn) {
     visBtn.textContent = "👁";

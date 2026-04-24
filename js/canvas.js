@@ -915,8 +915,19 @@ function _onPointerDown(evt) {
   if (state.itemsUnlocked && !editing) {
     const hit = _hitTest(world.x, world.y);
     if (hit) {
-      state.selectedId = hit.id;
+      // If the grabbed item is part of an existing multi-selection,
+      // drag the whole set together. Otherwise collapse to a single
+      // selection and drag just that item (old behaviour).
+      const batch = state.selectedIds.has(hit.id) && state.selectedIds.size > 1;
+      if (!batch) selectSingle(hit.id);
       refreshForSelection();
+      const startPositions = new Map();
+      if (batch) {
+        for (const id of state.selectedIds) {
+          const o = findObject(id);
+          if (o) startPositions.set(id, { x: o.position.x, y: o.position.y });
+        }
+      }
       drag = {
         id: hit.id,
         offsetX: world.x - hit.position.x,
@@ -924,6 +935,8 @@ function _onPointerDown(evt) {
         startX: world.x,
         startY: world.y,
         moved: false,
+        isBatch: batch,
+        startPositions,
       };
       canvas.setPointerCapture(evt.pointerId);
       render();
@@ -937,23 +950,30 @@ function _onPointerDown(evt) {
   // mostly-transparent / mostly-white images can still be grabbed anywhere
   // inside their rectangle — alpha masks exclude the padding pixels.
   if (editing) {
-    // Edit-mode drag picks up EVERY selected item's start position so
-    // a multi-selection moves together with the same world-delta. Primary
-    // (state.selectedId) drives the hit test. For a single selection this
-    // collapses to the old behaviour.
-    const primary = state.selectedId ? findObject(state.selectedId) : null;
-    const hitBatch = primary
-      && _pointInsideObject(world.x, world.y, primary, true);
-    if (hitBatch) {
+    // Edit-mode drag: tapping ANY item in the multi-selection grabs
+    // the whole group. Hit-test every selected item (bbox only, so
+    // mostly-transparent images still catch the press) and start a
+    // batch drag if any matches. Falling back to just the primary
+    // when nothing in the set matched preserves the old behaviour
+    // for a single-selection.
+    let hitItem = null;
+    for (const sid of state.selectedIds) {
+      const o = findObject(sid);
+      if (o && _pointInsideObject(world.x, world.y, o, true)) {
+        hitItem = o;
+        break;
+      }
+    }
+    if (hitItem) {
       const startPositions = new Map();
       for (const id of state.selectedIds) {
         const o = findObject(id);
         if (o) startPositions.set(id, { x: o.position.x, y: o.position.y });
       }
       drag = {
-        id: primary.id,
-        offsetX: world.x - primary.position.x,
-        offsetY: world.y - primary.position.y,
+        id: hitItem.id,
+        offsetX: world.x - hitItem.position.x,
+        offsetY: world.y - hitItem.position.y,
         startX: world.x,
         startY: world.y,
         moved: false,
