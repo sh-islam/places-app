@@ -526,6 +526,16 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   isolation: isolate;
   z-index: 0;
 }
+/* Per-item wrapper — non-transformed so the drop-shadow glow rides
+   in absolute CSS pixels, decoupled from the img's scale/rotate
+   transform. Fills the gif-layer box; the transformed img inside
+   positions itself via CSS matrix. */
+.gif-frame {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* filter set in JS on selection (drop-shadow for the glow). */
+}
 .gif-layer img {
   position: absolute;
   top: 0;

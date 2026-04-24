@@ -31,7 +31,13 @@ import { getCachedImage, loadImage } from "./images.js";
 import { render } from "./canvas.js";
 
 let layerEl = null;
-const _imgs = new Map(); // obj.id -> HTMLImageElement
+// Two parallel maps: each overlay item is a non-transformed wrapper
+// div that holds a transformed <img>. Drop-shadow for the selection
+// glow lives on the WRAPPER so it isn't scaled by the img's CSS
+// transform — visible halo is a constant 54 CSS px regardless of
+// the item's on-screen scale, matching the canvas PNG behaviour.
+const _wraps = new Map(); // obj.id -> wrapper div
+const _imgs  = new Map(); // obj.id -> img (child of wrapper)
 
 
 export function initGifLayer(el) {
@@ -105,23 +111,21 @@ function _buildMatrix(obj, w, h, rect) {
 // Composite the user's colour adjustments with an optional selection
 // drop-shadow. drop-shadow follows the alpha silhouette so transparent
 // GIF regions don't get a rectangular halo, matching canvas shadowBlur.
-function _composeFilter(obj, selected, effScale) {
+// Colour/adjustment filter goes on the img itself so baked-in
+// hue/saturation/brightness/contrast ride the image, not the glow.
+function _imgFilter(obj) {
   const base = filterStringFor(obj);
-  const baseStr = base === "none" ? "" : base;
-  // Canvas shadowBlur ignores the current transform, so a PNG gets
-  // the same 54 CSS-px halo regardless of obj.scale. CSS
-  // drop-shadow, however, IS scaled by the img's transform — which
-  // made the glow shrink to invisibility on small-scaled GIFs and
-  // balloon on large-scaled ones. Pre-divide the blur radius by the
-  // img's effective on-screen scale (view zoom × fit × object
-  // scale) so the final visible halo always lands at 54 CSS px.
-  const s = Math.max(0.05, effScale || 1);
-  const blurPx = 54 / s;
-  const glow = selected
-    ? `drop-shadow(0 0 ${blurPx}px rgba(80, 150, 255, 0.93))`
+  return base === "none" ? "" : base;
+}
+
+// Selection glow goes on the NON-TRANSFORMED wrapper div so the
+// 54-CSS-px halo isn't scaled by the img's transform. Canvas
+// shadowBlur is naturally transform-independent so this keeps both
+// rendering paths producing the same visible halo width.
+function _wrapFilter(selected) {
+  return selected
+    ? "drop-shadow(0 0 54px rgba(80, 150, 255, 0.93))"
     : "";
-  const out = [baseStr, glow].filter(Boolean).join(" ");
-  return out || "none";
 }
 
 
@@ -138,72 +142,66 @@ export function syncGifLayer(rect) {
     if (obj.hidden) continue;
     if (!isAnimatedGifObj(obj)) continue;
 
-    let img = _imgs.get(obj.id);
-    if (!img) {
+    let wrap = _wraps.get(obj.id);
+    let img  = _imgs.get(obj.id);
+    if (!wrap) {
+      wrap = document.createElement("div");
+      wrap.className = "gif-frame";
       img = document.createElement("img");
       img.src = assetUrl(obj.url);
       img.alt = "";
       img.draggable = false;
-      // crossOrigin not strictly needed for DOM display, but matches
-      // the canvas-side <img> creation in images.js for consistency.
       img.crossOrigin = "anonymous";
-      layerEl.appendChild(img);
+      wrap.appendChild(img);
+      layerEl.appendChild(wrap);
+      _wraps.set(obj.id, wrap);
       _imgs.set(obj.id, img);
-    } else if (img.parentNode !== layerEl) {
-      // Re-attach if something detached it (e.g. layerEl was rebuilt).
-      layerEl.appendChild(img);
+    } else if (wrap.parentNode !== layerEl) {
+      layerEl.appendChild(wrap);
     }
 
-    // If the source URL changed (shouldn't happen mid-session for GIFs,
-    // but cheap to handle), update src.
     if (img.dataset.url !== obj.url) {
       img.src = assetUrl(obj.url);
       img.dataset.url = obj.url;
     }
 
-    // Use the shared cache for dimensions — populated reliably at boot
-    // via preloadAll. Hit-testing also relies on this same cache, so a
-    // cache-miss means the GIF can't be selected either; trigger a load
-    // and re-render so the next frame can place it correctly.
     const cached = getCachedImage(obj.url);
     if (!cached) {
-      img.style.visibility = "hidden";
+      wrap.style.visibility = "hidden";
       loadImage(obj.url).then(render).catch(() => {});
       continue;
     }
     const w = cached.naturalWidth;
     const h = cached.naturalHeight;
     if (!w || !h) {
-      img.style.visibility = "hidden";
+      wrap.style.visibility = "hidden";
       continue;
     }
-    img.style.visibility = "";
+    wrap.style.visibility = "";
     img.style.width  = w + "px";
     img.style.height = h + "px";
     img.style.transform = _buildMatrix(obj, w, h, rect);
-    // Effective on-screen scale (ignoring rotation, shear) — used to
-    // pre-size the drop-shadow so the visible halo is scale-invariant.
-    const fit = Math.min(rect.width / 1000, rect.height / 1000);
-    const k = state.view.zoom * fit;
-    const sx = (obj.scale && obj.scale.x) || 1;
-    const sy = (obj.scale && obj.scale.y) || 1;
-    const effScale = k * Math.sqrt(Math.abs(sx * sy));
-    img.style.filter = _composeFilter(
-      obj, obj.id === state.selectedId, effScale
-    );
-    // Stamp obj.layer as z-index so GIF-vs-GIF ordering within the
-    // overlay honours bringForward / sendBackward. (GIFs still paint
-    // above all canvas items — see module-level Limitations.)
-    img.style.zIndex = String(obj.layer);
+    // Per-item colour adjustments ride the img (they affect the
+    // displayed pixels of the image itself).
+    img.style.filter = _imgFilter(obj);
+    // Selection drop-shadow rides the NON-TRANSFORMED wrapper so
+    // the 54-CSS-px halo doesn't get shrunk/stretched by the img's
+    // transform — visible halo is constant for tiny and huge items
+    // alike, matching the canvas PNG path.
+    wrap.style.filter = _wrapFilter(obj.id === state.selectedId);
+    // Stamp obj.layer as z-index on the WRAPPER so GIF-vs-GIF
+    // ordering within the overlay honours bringForward/sendBackward.
+    wrap.style.zIndex = String(obj.layer);
 
     seen.add(obj.id);
   }
 
   // Drop overlays for objects that are gone (deleted, hidden, route
   // changed to canvas because warp got applied, room switched, etc.).
-  for (const [id, img] of _imgs) {
+  for (const [id, wrap] of _wraps) {
     if (!seen.has(id)) {
-      img.remove();
+      wrap.remove();
+      _wraps.delete(id);
       _imgs.delete(id);
     }
   }
