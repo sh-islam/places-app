@@ -13,6 +13,7 @@ import {
 import { itemDisplayName } from "./labels.js";
 import { deleteActiveRoom } from "./rooms.js";
 import { assetUrl } from "./config.js";
+import { getCanvasCenterWorld } from "./canvas.js";
 
 
 let drawerEl = null;
@@ -172,12 +173,11 @@ function _onListClick(e) {
 
 
 function _centerObject(obj) {
-  const canvas = document.getElementById("room-canvas");
-  const rect = canvas.getBoundingClientRect();
-  // Convert the canvas centre (screen) to world coords so the item lands in
-  // the visible middle even when the user is zoomed/panned.
-  const v = state.view;
-  const cx = (rect.width  / 2 - v.panX) / v.zoom;
-  const cy = (rect.height / 2 - v.panY) / v.zoom;
-  moveObject(obj.id, cx, cy);
+  // World is a fixed 1000×1000 space mapped into the canvas CSS rect
+  // via a fit transform; the old local math mistook canvas CSS pixels
+  // for world units so the item landed off-centre. Route through the
+  // canvas's own screen→world helper which accounts for the fit,
+  // zoom, and pan together.
+  const { x, y } = getCanvasCenterWorld();
+  moveObject(obj.id, x, y);
 }

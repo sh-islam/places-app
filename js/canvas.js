@@ -188,6 +188,15 @@ function _clampPan() {
   v.panY = Math.max(-maxPanY, Math.min(maxPanY, v.panY));
 }
 
+// World coordinate at the centre of the canvas's current view. Used
+// by the inventory "centre in canvas" action so an item lands in the
+// visible middle regardless of current zoom/pan.
+export function getCanvasCenterWorld() {
+  const rect = canvas.getBoundingClientRect();
+  return _screenToWorld(rect.width / 2, rect.height / 2);
+}
+
+
 function _screenToWorld(sx, sy) {
   // Undo the two-step transform:
   //   1. Outer view (zoom + screen-px pan around scene centre)
