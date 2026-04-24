@@ -129,8 +129,12 @@ function _imgFilter(obj) {
 // A fully-opaque (alpha 1) and slightly-more-saturated-blue swatch
 // lands on the same "blue glow" impression as the canvas PNGs.
 function _wrapFilter(selected) {
+  // Per request: GIFs read ~33% stronger than canvas PNGs. Bump
+  // the blur radius 54 → 72px (canvas stays at 54 × dpr on its
+  // own side) so the GIF halo spreads a bit further and reads a
+  // touch brighter without changing the PNG glow.
   return selected
-    ? "drop-shadow(0 0 54px rgb(80, 150, 255))"
+    ? "drop-shadow(0 0 72px rgb(80, 150, 255))"
     : "";
 }
 
