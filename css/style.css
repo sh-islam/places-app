@@ -892,6 +892,20 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   border-bottom: 2px solid var(--border);
   margin-bottom: 12px;
 }
+/* RESET + SAVE pills live together in the top-right of the panel
+   header. RESET only exists while there are unsaved changes (hidden
+   via the `hidden` attribute, toggled by markDirty / markClean). */
+.panel-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+#reset-btn {
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  color: var(--text-muted);
+}
+#reset-btn:hover { background: var(--btn-hover); color: var(--text); }
 .brand {
   margin: 0;
   font-size: 16px;

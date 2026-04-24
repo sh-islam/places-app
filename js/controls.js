@@ -1,6 +1,6 @@
 // Wires up panel buttons + joystick + free-rotate slider.
 
-import { state, markClean, markDirty } from "./state.js";
+import { state, markClean, markDirty, syncActiveRoom } from "./state.js";
 import {
   bringForward,
   clearSnapshot,
@@ -33,6 +33,7 @@ const DPAD_STEP_PX = 16;
 
 export function initControls() {
   document.getElementById("save-btn").addEventListener("click", _saveRoom);
+  document.getElementById("reset-btn")?.addEventListener("click", _resetRoom);
 
   document.getElementById("edit-btn").addEventListener("click", () => {
     if (state.selectedId) {
@@ -380,6 +381,37 @@ async function _saveRoom() {
     btn.textContent = "FAIL";
     console.error(err);
   }
+}
+
+
+// ---------- Reset ----------
+//
+// Discards any unsaved changes on the active room by re-fetching its
+// server copy and swapping it in. Any in-flight edit mode is closed
+// so the canvas / panel doesn't keep dangling state (selected id,
+// shear handles, etc.) from the discarded version. Save won't fire
+// afterwards because markClean() clears dirty + hides the pill.
+async function _resetRoom() {
+  if (!state.dirty) return;
+  if (!window.confirm("Discard all unsaved changes to this room?")) return;
+  const btn = document.getElementById("reset-btn");
+  const savedLabel = btn?.textContent;
+  if (btn) btn.textContent = "...";
+  try {
+    const fresh = await api.getRoom(state.activeIndex);
+    state.rooms[state.activeIndex] = fresh;
+    syncActiveRoom();
+    state.selectedId = null;
+    state.editSubTool = null;
+    markClean();
+    refreshForSelection();
+    render();
+  } catch (err) {
+    console.error("reset failed", err);
+    if (btn) btn.textContent = "FAIL";
+    return;
+  }
+  if (btn) btn.textContent = savedLabel || "RESET";
 }
 
 

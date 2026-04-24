@@ -42,10 +42,17 @@ export function markDirty() {
   state.dirty = true;
   const btn = document.getElementById("save-btn");
   if (btn) { btn.classList.add("unsaved"); btn.textContent = "SAVE"; }
+  // The RESET button shadows SAVE: it's only visible while there are
+  // unsaved changes. Mirroring the same trigger keeps the two in sync
+  // without needing a separate signal source.
+  const reset = document.getElementById("reset-btn");
+  if (reset) reset.hidden = false;
 }
 
 export function markClean() {
   state.dirty = false;
   const btn = document.getElementById("save-btn");
   if (btn) btn.classList.remove("unsaved");
+  const reset = document.getElementById("reset-btn");
+  if (reset) reset.hidden = true;
 }
