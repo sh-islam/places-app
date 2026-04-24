@@ -142,7 +142,6 @@ input, textarea, [contenteditable] {
 .drawer-grid,
 .inventory-list,
 .settings-body,
-.bg-list,
 .scene-inner,
 .catalog-list {
   scrollbar-width: thin;
@@ -150,8 +149,7 @@ input, textarea, [contenteditable] {
 }
 .drawer-grid::-webkit-scrollbar,
 .inventory-list::-webkit-scrollbar,
-.settings-body::-webkit-scrollbar,
-.bg-list::-webkit-scrollbar {
+.settings-body::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
@@ -804,8 +802,9 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   position: absolute;
   top: 52px;
   right: 8px;
+  bottom: 14px;                 /* never touches the scene's bottom edge */
   width: 220px;
-  max-height: 60vh;
+  max-width: calc(100% - 16px); /* stay inside the scene horizontally */
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -830,7 +829,12 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   overflow-y: auto;
+  /* Hide the scrollbar but keep touch/wheel scrolling. Clean look on
+     mobile where lots of backgrounds make the popover tall. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.bg-list::-webkit-scrollbar { display: none; }
 .bg-tile {
   background: var(--bg-card);
   border: 2px solid transparent;
