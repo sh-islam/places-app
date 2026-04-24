@@ -946,62 +946,48 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   flex: 1 1 auto;
 }
 
-/* Left-side controller cluster: analog joystick + 4-dir d-pad stacked */
+/* Left-side controller cluster: joystick at centre, 4 arrow buttons
+   at N/S/E/W. Laid out as a 3×3 grid so everything aligns cleanly and
+   the cluster collapses to just the joystick's footprint (120px) plus
+   the arrow buttons on each side. */
 .controller {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: 36px 120px 36px;
+  grid-template-rows:    36px 120px 36px;
+  gap: 6px;
+  place-items: center;
 }
 
-/* 4-direction step-nudge pad — styled to match the analog joystick */
-.dpad {
-  display: grid;
-  grid-template-columns: 32px 32px 32px;
-  grid-template-rows: 32px 32px 32px;
-  gap: 3px;
-  padding: 6px;
-  background:
-    radial-gradient(circle at 50% 40%, #2f333b 0%, var(--btn-bg) 75%, var(--bg-base) 100%);
-  border: 3px solid var(--bg-surface);
-  border-radius: 18px;
-  box-shadow:
-    inset 0 6px 14px rgba(0,0,0,0.7),
-    inset 0 -3px 6px rgba(255,255,255,0.05),
-    0 2px 6px rgba(0,0,0,0.5);
-}
-.dpad-up    { grid-column: 2; grid-row: 1; }
-.dpad-left  { grid-column: 1; grid-row: 2; }
-.dpad-hub   { grid-column: 2; grid-row: 2; align-self: center; justify-self: center;
-              width: 14px; height: 14px; border-radius: 50%;
-              background: radial-gradient(circle at 35% 30%, #545862, #2f333b); }
-.dpad-right { grid-column: 3; grid-row: 2; }
-.dpad-down  { grid-column: 2; grid-row: 3; }
+/* Simplistic arrow buttons — flat, minimal, no gradient bg. The
+   joystick is the visual star; these are just the nudge controls. */
 .dpad-btn {
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--bg-surface);
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: radial-gradient(circle at 35% 30%, #8a9098 0%, #545862 60%, #2f333b 100%);
+  background: var(--btn-bg);
   color: var(--text);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  box-shadow:
-    0 2px 4px rgba(0,0,0,0.5),
-    inset 0 -2px 3px rgba(0,0,0,0.4),
-    inset 0 1px 2px rgba(255,255,255,0.18);
 }
-.dpad-btn:active { transform: translateY(1px); box-shadow: inset 0 -1px 2px rgba(0,0,0,0.3); }
+.dpad-btn:hover  { background: var(--btn-hover); }
+.dpad-btn:active { transform: translateY(1px); }
+.dpad-up    { grid-column: 2; grid-row: 1; }
+.dpad-left  { grid-column: 1; grid-row: 2; }
+.dpad-right { grid-column: 3; grid-row: 2; }
+.dpad-down  { grid-column: 2; grid-row: 3; }
 
-/* Joystick */
+/* Joystick sits at the centre cell of the controller grid. */
 .joystick {
-  width: 140px;
-  height: 140px;
+  grid-column: 2;
+  grid-row: 2;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 40%, #2f333b 0%, var(--btn-bg) 75%, var(--bg-base) 100%);
@@ -1016,8 +1002,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 .joystick.active { cursor: grabbing; }
 .joystick-knob {
-  width: 60px;
-  height: 60px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 35% 30%, #8a9098 0%, #545862 60%, #2f333b 100%);

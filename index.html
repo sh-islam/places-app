@@ -115,18 +115,16 @@
       <!-- Edit mode: joystick + 4-button D-pad + action stack + slider -->
       <div data-mode="edit" class="mode">
         <div class="edit-top">
-          <!-- Left cluster: analog joystick stacked with 4-button d-pad -->
-          <div class="controller">
+          <!-- Left cluster: analog joystick at centre, 4 step-nudge
+               arrows around it (N/S/E/W). 3×3 grid layout in CSS. -->
+          <div class="controller" aria-label="Move + nudge">
             <div class="joystick" id="joystick" aria-label="Move pad">
               <div class="joystick-knob" id="joystick-knob"></div>
             </div>
-            <div class="dpad" aria-label="Nudge pad">
-              <button class="dpad-btn dpad-up"    data-action="nudge" data-dx="0"  data-dy="-1" title="Up">▲</button>
-              <button class="dpad-btn dpad-left"  data-action="nudge" data-dx="-1" data-dy="0"  title="Left">◀</button>
-              <span class="dpad-hub" aria-hidden="true"></span>
-              <button class="dpad-btn dpad-right" data-action="nudge" data-dx="1"  data-dy="0"  title="Right">▶</button>
-              <button class="dpad-btn dpad-down"  data-action="nudge" data-dx="0"  data-dy="1"  title="Down">▼</button>
-            </div>
+            <button class="dpad-btn dpad-up"    data-action="nudge" data-dx="0"  data-dy="-1" title="Up">▲</button>
+            <button class="dpad-btn dpad-left"  data-action="nudge" data-dx="-1" data-dy="0"  title="Left">◀</button>
+            <button class="dpad-btn dpad-right" data-action="nudge" data-dx="1"  data-dy="0"  title="Right">▶</button>
+            <button class="dpad-btn dpad-down"  data-action="nudge" data-dx="0"  data-dy="1"  title="Down">▼</button>
           </div>
 
           <!-- Right side: stacked action buttons (gameboy-style).
