@@ -41,19 +41,26 @@ function _fitEditModeToPanel() {
     wrap.style.transformOrigin = "";
     wrap.style.height = "";
     wrap.style.width = "";
+    mode.style.overflowX = "";
     const natural = wrap.scrollHeight;
     const available = mode.clientHeight;
     if (natural <= 0 || available <= 0) return;
     const scale = Math.min(1, available / natural);
     if (scale >= 0.999) return; // already fits
-    wrap.style.transformOrigin = "top center";
+    wrap.style.transformOrigin = "top left";
     wrap.style.transform = `scale(${scale})`;
-    // Just shrink the wrapper's layout height to the scaled visual
-    // so flex doesn't push DONE off-screen. Horizontal is left to
-    // the edit-top's flex layout: controller + action-stack spread
-    // via justify-content: space-around so any leftover horizontal
-    // room is distributed symmetrically, no dead zones on the sides.
+    // Width compensation: set wrap layout width to (100 / scale)% so
+    // after the transform visually shrinks it back to 100 % of the
+    // mode, its children (which flex-anchor to the wrap's left and
+    // right edges) land exactly at the mode's left and right edges.
+    // Without this the scaled content leaves big dead bars on both
+    // sides. Height is shrunk to the scaled visual so flex above
+    // sees the correct occupied height and DONE stays on-screen.
+    wrap.style.width = `${100 / scale}%`;
     wrap.style.height = `${natural * scale}px`;
+    // Wider-than-mode layout width would otherwise trigger a
+    // horizontal scrollbar; clip it.
+    mode.style.overflowX = "hidden";
   });
 }
 

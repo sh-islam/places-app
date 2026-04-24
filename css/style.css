@@ -1238,15 +1238,16 @@ body.adv-editing .adv-zoom-controls { display: flex; }
    joystick + action-stack cluster sits lower and bigger rather than
    being pinned at the top with whitespace underneath. */
 .edit-top {
-  /* Flex so the controller and action-stack spread to the wrap's
-     full width with symmetric space around them, instead of each
-     being centred in a fixed 1fr grid cell (which left chunks of
-     empty horizontal space even after the fit-to-panel scale). */
+  /* Flex so the controller and action-stack anchor to the wrap's
+     left/right edges (space-between). The wrap is width-compensated
+     via JS to be 100/scale % wide, so these edges are at the mode's
+     left and right edges after the transform shrinks the wrap back
+     to 100 % — no dead bars on the sides. */
   display: flex;
-  justify-content: space-around;
+  justify-content: space-between;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  padding: 4px 8px;
   flex: 1 1 auto;
 }
 
