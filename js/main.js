@@ -16,6 +16,21 @@ import { initRecategorize } from "./recategorize.js";
 import { initAdvancedEdit } from "./advanced_edit.js";
 
 
+// Block the casual image-save paths (right-click Save Image, long-
+// press menu on iOS, drag-into-new-tab-to-save). Native drag already
+// suppressed via CSS -webkit-user-drag: none; this kills the context
+// menu entry too. Doesn't stop screenshots or devtools — nothing can.
+document.addEventListener("contextmenu", (e) => {
+  if (e.target instanceof HTMLImageElement
+      || e.target instanceof HTMLCanvasElement) {
+    e.preventDefault();
+  }
+});
+document.addEventListener("dragstart", (e) => {
+  if (e.target instanceof HTMLImageElement) e.preventDefault();
+});
+
+
 async function boot() {
   // If login.js tacked a token onto the URL hash (#t=...), adopt it and
   // clean the URL. This is the safety net for mobile browsers that

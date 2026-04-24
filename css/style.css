@@ -90,6 +90,25 @@ html, body {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* Make every <img> in the app un-steal-able via the ordinary path —
+   native drag-to-save, long-press Save Image, drag into another tab,
+   etc. Not bulletproof (screenshots, devtools) but blocks the
+   casual grabs the user asked to prevent. */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;   /* suppresses iOS long-press menu */
+}
+/* Canvas gets the same treatment — blocks the 'Save image as…'
+   right-click entry and long-press. */
+canvas {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 input, textarea, [contenteditable] {
   -webkit-user-select: none;
   user-select: none;
@@ -111,6 +130,41 @@ input, textarea, [contenteditable] {
 .login-body,
 .login-body * {
   font-family: "Press Start 2P", "VT323", "Courier New", ui-monospace, monospace;
+}
+
+/* Preload trick: force the browser to fetch Press Start 2P on first
+   paint by rendering it into an invisible pseudo-element. Otherwise
+   the font is only fetched when the first visible character in
+   Press Start 2P's unicode range is shown, and when autocomplete
+   fills the username field it may have already rendered that field
+   in the fallback monospace. This lines up the fetch with initial
+   page paint so the swap happens before anything interactive. */
+.login-body::before,
+.splash-title {
+  /* pseudo-element absorbs the font fetch */
+}
+.login-body::before {
+  content: "Places";
+  font-family: "Press Start 2P";
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  top: -9999px;
+  left: 0;
+  white-space: nowrap;
+}
+/* Same hidden preload on index.html so the goodbye splash's text
+   appears in pixel font on first paint too. */
+.app-body::before {
+  content: "Places";
+  font-family: "Press Start 2P";
+  position: fixed;
+  opacity: 0;
+  pointer-events: none;
+  top: -9999px;
+  left: 0;
+  white-space: nowrap;
+  z-index: -1;
 }
 
 .login-body {
@@ -138,19 +192,28 @@ input, textarea, [contenteditable] {
 }
 .splash[hidden] { display: none; }
 .splash.closing { opacity: 0; }
-/* Splash icon — 50 % larger than the login card's icon (240 × 1.5). */
+/* Splash icon — same intrinsic size as the login card's icon (240px)
+   so the transition from splash → login (or from index → splash)
+   doesn't jump sizes. Gently scales down while the splash fades so
+   it still reads as "landing into place". */
 .splash-icon {
-  width: 360px;
-  height: 360px;
+  width: 240px;
+  height: 240px;
   max-width: 70vw;
   max-height: 70vw;
   object-fit: contain;
   transition: transform 500ms ease;
 }
 .splash.closing .splash-icon {
-  /* Zoom back down toward login-icon size as the overlay fades.
-     Visually reads as "the icon is landing inside the login card". */
-  transform: scale(0.45);
+  transform: scale(0.85);
+}
+/* Force the pixel font on the splash regardless of which page it's
+   rendered on (index.html's default body font is sans; login.html's
+   is Press Start 2P). Keeps the welcome and goodbye animations
+   visually identical. */
+.splash-title,
+.splash-slogan {
+  font-family: "Press Start 2P", "VT323", "Courier New", ui-monospace, monospace;
 }
 .splash-title {
   margin: 0 0 4px;

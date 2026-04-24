@@ -14,6 +14,15 @@ const errorEl = document.getElementById("login-error");
 document.body.classList.add("login-ready");
 
 
+// Block casual image-save paths on login.html too (Places icon, etc.).
+document.addEventListener("contextmenu", (e) => {
+  if (e.target instanceof HTMLImageElement) e.preventDefault();
+});
+document.addEventListener("dragstart", (e) => {
+  if (e.target instanceof HTMLImageElement) e.preventDefault();
+});
+
+
 // ---- Splash played AFTER a successful sign-in ----
 //
 // Called once the backend accepts the credentials. Enlarged icon +
