@@ -550,7 +550,7 @@ function _drawObject(obj) {
   const isSelected = obj.id === state.selectedId;
   if (isSelected) {
     const dpr = window.devicePixelRatio || 1;
-    ctx.shadowColor = "rgba(80, 150, 255, 0.75)";
+    ctx.shadowColor = "rgba(80, 150, 255, 0.67)";
     ctx.shadowBlur = 54 * dpr;
     ctx.drawImage(source, -w / 2, -h / 2, w, h);
     ctx.shadowBlur = 20 * dpr;

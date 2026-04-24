@@ -136,8 +136,8 @@ function _wrapFilter(selected) {
   // glow at the item's edge without the halo reaching further out
   // than the PNG selection does.
   return selected
-    ? "drop-shadow(0 0 20px rgba(80, 150, 255, 0.75))"
-      + " drop-shadow(0 0 54px rgba(80, 150, 255, 0.75))"
+    ? "drop-shadow(0 0 20px rgba(80, 150, 255, 0.67))"
+      + " drop-shadow(0 0 54px rgba(80, 150, 255, 0.67))"
     : "";
 }
 
