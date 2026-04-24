@@ -176,15 +176,20 @@ input, textarea, [contenteditable] {
   overflow: auto;
 }
 
-/* ----- Splash intro (shown on ?from=logout) ----- */
+/* ----- Splash intro (played after sign-in / before sign-out) ----- */
 .splash {
   position: fixed;
   inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 28px;
+  /* justify-content: flex-start + padding-top pins the icon at a
+     fixed vertical offset from the top. Title + slogan flow below;
+     when the slogan wraps to a second line, the icon stays put
+     instead of getting pushed up by centred-flex re-layout. */
+  justify-content: flex-start;
+  padding-top: 22vh;
+  gap: 20px;
   background: linear-gradient(135deg, #1a1d22, #2a2f38);
   z-index: 100;
   opacity: 1;
@@ -312,6 +317,21 @@ input, textarea, [contenteditable] {
   padding: 8px;
   border-radius: 6px;
   width: 100%;
+}
+/* WebKit autofill restyling: by default Safari/Chrome render the
+   filled value in the platform font (SF/Roboto). Force it through
+   our pixel font so autofilled usernames look like the rest of the
+   form immediately. The 5000s transition is the classic hack that
+   defers the yellow background override indefinitely; caret-color
+   keeps the cursor visible on dark bg. */
+.login-form input:-webkit-autofill,
+.login-form input:-webkit-autofill:hover,
+.login-form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #eaeaea;
+  -webkit-box-shadow: 0 0 0 1000px #15171a inset;
+  caret-color: #eaeaea;
+  font-family: "Press Start 2P", "VT323", "Courier New", ui-monospace, monospace !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 
@@ -482,10 +502,16 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   pointer-events: none;
 }
 .zoom-btn:disabled:hover { background: rgba(0, 0, 0, 0.55); }
-/* ⟲ is a text-style Unicode glyph that renders visually smaller than
-   the +/− chars at the same font-size. Bump it so the three zoom
-   buttons look consistent. */
-.zoom-reset { font-size: 22px; }
+/* ⟲ is a text-style Unicode glyph that tends to render visually
+   smaller than +/− at the same font-size — but only on some
+   platforms. Mobile browsers needed the bump to 22px to match the
+   +/− size; desktop Chrome/Safari render ⟲ at nearly +/− size and
+   22px turns it into a giant. Split the rule by screen width so
+   each platform gets the right visual scale. */
+.zoom-reset { font-size: 17px; }
+@media (max-width: 768px) {
+  .zoom-reset { font-size: 22px; }
+}
 
 .scene.ui-hidden .zoom-controls,
 .scene.ui-hidden .bg-picker-btn,

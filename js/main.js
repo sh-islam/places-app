@@ -198,11 +198,11 @@ async function boot() {
   function syncLockBtn() {
     if (state.itemsUnlocked) {
       lockIcon.textContent = "🔓";
-      lockLabel.textContent = "Lock all items";
+      lockLabel.textContent = "Lock canvas";
       lockBtn.classList.add("active");
     } else {
       lockIcon.textContent = "🔒";
-      lockLabel.textContent = "Unlock all items";
+      lockLabel.textContent = "Unlock canvas";
       lockBtn.classList.remove("active");
     }
   }
@@ -258,12 +258,12 @@ async function _playGoodbyeSplashAndLogout() {
     await new Promise((r) => setTimeout(r, 55));
   }
   await new Promise((r) => setTimeout(r, 900));
-  // Fire the server-side logout in parallel with the fade so the user
-  // never waits on the network.
+  // Fire the logout alongside the splash (non-blocking so the user
+  // doesn't wait on the network) and navigate immediately. No fade
+  // out here — a fade would briefly reveal the main app behind the
+  // splash, which the user shouldn't see again after saying goodbye.
   api.logout().catch(() => {});
   authToken.clear();
-  splash.classList.add("closing");
-  await new Promise((r) => setTimeout(r, 500));
   window.location.href = "login.html";
 }
 
