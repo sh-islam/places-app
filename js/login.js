@@ -9,6 +9,47 @@ import { authToken } from "./api.js";
 const form = document.getElementById("login-form");
 const errorEl = document.getElementById("login-error");
 
+
+// ---- Splash intro (only when the user just signed out) ----
+//
+// main.js sends us to login.html?from=logout when the nav-bar power
+// button fires. We play a quick typewriter sequence — enlarged icon +
+// "A space you can call your own" — then fade out as the login card
+// fades in. Direct visits (expired session, bookmark) skip it and
+// reveal the card immediately.
+(async function playSplashIfNeeded() {
+  const params = new URLSearchParams(location.search);
+  const cameFromLogout = params.get("from") === "logout";
+  if (!cameFromLogout) {
+    document.body.classList.add("login-ready");
+    return;
+  }
+
+  const splash  = document.getElementById("splash-overlay");
+  const textEl  = document.getElementById("splash-text");
+  const slogan  = "A space you can call your own.";
+
+  splash.hidden = false;
+
+  // Typewriter: one char every ~55ms so the whole line lands in ~1.6s.
+  for (let i = 1; i <= slogan.length; i++) {
+    textEl.textContent = slogan.slice(0, i);
+    await new Promise((r) => setTimeout(r, 55));
+  }
+  // Linger on the finished slogan for a beat.
+  await new Promise((r) => setTimeout(r, 1000));
+
+  // Cross-fade: splash fades + shrinks, login card fades in behind it.
+  splash.classList.add("closing");
+  document.body.classList.add("login-ready");
+  await new Promise((r) => setTimeout(r, 500));
+  splash.hidden = true;
+
+  // Clean the ?from=logout from the URL so refreshing the page doesn't
+  // replay the splash (and so it doesn't get pasted into bookmarks).
+  history.replaceState(null, "", location.pathname);
+})();
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   errorEl.hidden = true;

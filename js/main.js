@@ -221,7 +221,10 @@ function _onNavClick(evt) {
   } else if (nav === "logout") {
     api.logout().finally(() => {
       authToken.clear();
-      window.location.href = "login.html";
+      // ?from=logout tells the login page to play the splash intro
+      // ("A space you can call your own" typewriter) before showing
+      // the form. Direct visits to login.html skip it.
+      window.location.href = "login.html?from=logout";
     });
   }
 }

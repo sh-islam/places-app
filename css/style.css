@@ -105,6 +105,14 @@ input, textarea, [contenteditable] {
 
 /* ---------- Login (still used) ---------- */
 
+/* Pixel / 8-bit font across the whole login surface. The main app
+   keeps its regular sans — pixel text is character for the sign-in,
+   but noisy everywhere else. */
+.login-body,
+.login-body * {
+  font-family: "Press Start 2P", "VT323", "Courier New", ui-monospace, monospace;
+}
+
 .login-body {
   min-height: 100vh;
   display: flex;
@@ -112,6 +120,62 @@ input, textarea, [contenteditable] {
   justify-content: center;
   background: linear-gradient(135deg, #1a1d22, #2a2f38);
   overflow: auto;
+}
+
+/* ----- Splash intro (shown on ?from=logout) ----- */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  background: linear-gradient(135deg, #1a1d22, #2a2f38);
+  z-index: 100;
+  opacity: 1;
+  transition: opacity 500ms ease;
+}
+.splash[hidden] { display: none; }
+.splash.closing { opacity: 0; }
+/* Splash icon — 50 % larger than the login card's icon (240 × 1.5). */
+.splash-icon {
+  width: 360px;
+  height: 360px;
+  max-width: 70vw;
+  max-height: 70vw;
+  object-fit: contain;
+  transition: transform 500ms ease;
+}
+.splash.closing .splash-icon {
+  /* Zoom back down toward login-icon size as the overlay fades.
+     Visually reads as "the icon is landing inside the login card". */
+  transform: scale(0.45);
+}
+.splash-slogan {
+  color: #eaeaea;
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-align: center;
+  margin: 0;
+  max-width: min(520px, 90vw);
+  line-height: 1.7;
+}
+.splash-caret {
+  display: inline-block;
+  margin-left: 2px;
+  animation: splash-caret-blink 900ms steps(2) infinite;
+}
+@keyframes splash-caret-blink { 50% { opacity: 0; } }
+
+/* Login card starts hidden when the splash is active so it can fade
+   in once the splash closes. JS flips .login-ready to un-hide. */
+.login-body:not(.login-ready) .login-card {
+  opacity: 0;
+  pointer-events: none;
+}
+.login-card {
+  transition: opacity 500ms ease;
 }
 .login-card {
   width: 320px;

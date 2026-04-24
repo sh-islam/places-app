@@ -10,9 +10,23 @@
   <link rel="apple-touch-icon" href="icon.png" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#0d0f12" />
+  <!-- Pixel font for the login surface. Preconnect + display=swap so
+       the first paint is usable even before the font arrives. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="login-body">
+  <!-- Splash intro shown when the user arrives from sign-out
+       (?from=logout). Icon 1.5× the normal login size, slogan
+       typewriters in, pause, then splash fades out as the login
+       card fades in. Hidden by default for direct visits. -->
+  <div id="splash-overlay" class="splash" hidden>
+    <img src="icon.png" alt="" class="splash-icon" />
+    <p class="splash-slogan"><span id="splash-text"></span><span class="splash-caret">|</span></p>
+  </div>
   <main class="login-card">
     <img src="icon.png" alt="" class="login-icon" />
     <h1>Places</h1>
