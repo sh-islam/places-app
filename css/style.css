@@ -199,10 +199,15 @@ input, textarea, [contenteditable] {
   box-sizing: border-box;
   text-align: center;
 }
-/* Slogan reserves fixed vertical space so its wrap (e.g. 1 line vs 2)
+/* Slogan reserves fixed vertical space so its wrap (e.g. 1 line vs 3)
    doesn't change splash-card height and therefore doesn't shift the
-   icon. */
-.splash-slogan { min-height: 3.4em; }
+   icon. Generous — 3 lines at line-height 1.7 = 5.1em; using 5.5em
+   covers iPhone 15 Pro Max where "Goodbye. This place will always be
+   yours." wraps to 3 lines of pixel font in the 304-px-wide card. */
+.splash-slogan {
+  min-height: 5.5em;
+  line-height: 1.7;
+}
 /* Splash icon — same intrinsic size as the login card's icon (240px
    desktop, 180px mobile) so no size jump at transition. */
 .splash-icon {
@@ -464,6 +469,30 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
     repeating-linear-gradient(45deg, #5a8c5a 0 12px, #527d52 12px 24px);
   touch-action: none;
 }
+
+/* GIF overlay layer — siblings of the canvas, fills the same box.
+   Each child <img> is positioned by a CSS matrix that mirrors the
+   canvas object transform so animated GIFs land at the same place
+   and orient the same way as canvas-rendered items. */
+.gif-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.gif-layer img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  /* Disable native drag (matches the canvas-side image protect rules). */
+  -webkit-user-drag: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+/* Selection glow + filter (brightness/contrast/etc) get composed
+   into a single style.filter string by gif_layer.js per render so
+   the selected drop-shadow follows alpha just like canvas shadowBlur. */
 
 /* ---------- Zoom controls (scene overlay, top-left) ---------- */
 

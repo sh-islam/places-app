@@ -14,6 +14,7 @@ import {
 import { getMode, refreshForSelection, setMode } from "./panel.js";
 import { nextRoom, prevRoom } from "./rooms.js";
 import { warpImage } from "./homography.js";
+import { isAnimatedGifObj, syncGifLayer } from "./gif_layer.js";
 
 
 let canvas = null;
@@ -209,7 +210,14 @@ export function render() {
   if (!ctx) return;
   // The advanced-edit image editor commandeers #room-canvas to show the
   // edit preview + tool overlays. Skip the scene draw so we don't wipe it.
-  if (getMode() === "advanced-edit") return;
+  // Also hide the GIF overlay so animated items don't float on top of
+  // the editor preview; the next normal render unhides it.
+  const _gifLayer = document.getElementById("gif-layer");
+  if (getMode() === "advanced-edit") {
+    if (_gifLayer) _gifLayer.style.display = "none";
+    return;
+  }
+  if (_gifLayer && _gifLayer.style.display === "none") _gifLayer.style.display = "";
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -235,6 +243,10 @@ export function render() {
   ctx.translate(offsetX, offsetY);
   ctx.scale(fit, fit);
   for (const obj of objectsByLayerAsc()) {
+    // Animated GIFs render through the DOM overlay (canvas drawImage
+    // would only paint frame 0). Warped GIFs fall back to canvas — see
+    // isAnimatedGifObj for the routing rule.
+    if (isAnimatedGifObj(obj)) continue;
     _drawObject(obj);
   }
   // Sub-tool handles for the selected item (shear / warp).
@@ -242,6 +254,10 @@ export function render() {
     const sel = findObject(state.selectedId);
     if (sel) _drawSubToolOverlay(sel);
   }
+
+  // Mirror canvas transforms onto any DOM-overlay GIFs so they sit
+  // exactly where canvas rendering would have placed them.
+  syncGifLayer(rect);
 }
 
 

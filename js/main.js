@@ -14,6 +14,7 @@ import { initSettings, applyStoredTheme } from "./settings.js";
 import { setMode, refreshForSelection } from "./panel.js";
 import { initRecategorize } from "./recategorize.js";
 import { initAdvancedEdit } from "./advanced_edit.js";
+import { initGifLayer } from "./gif_layer.js";
 
 
 // Block the casual image-save paths (right-click Save Image, long-
@@ -154,6 +155,7 @@ async function boot() {
     .addEventListener("click", _onNavClick);
 
   initCanvas(document.getElementById("room-canvas"));
+  initGifLayer(document.getElementById("gif-layer"));
   attachSceneSwipe(document.querySelector(".scene"));
 
   await initBackgrounds({
