@@ -907,7 +907,16 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  /* Panel content can exceed the available vertical space on short
+     mobile viewports (selected mode's Move-to chips, edit mode's
+     full controller + action rows, advanced-edit's sliders + copy
+     form). Allow vertical scroll so every control stays reachable,
+     but hide the scrollbar so the look stays clean. */
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.mode::-webkit-scrollbar { display: none; }
 .mode.active { display: flex; }
 
 /* Selected mode */
