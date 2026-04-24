@@ -6,6 +6,7 @@ import {
   clearSnapshot,
   confirmRemoveObject,
   DEFAULT_ADJUSTMENTS,
+  duplicateObject,
   findObject,
   flipHorizontal,
   flipVertical,
@@ -66,7 +67,20 @@ export function initControls() {
   _initZoomButtons();
   _initRenameButton();
   _initSubTools();
+  _initDuplicateButton();
   setInterval(_updateSaveLabel, 400);
+}
+
+
+function _initDuplicateButton() {
+  const btn = document.getElementById("duplicate-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    if (!state.selectedId) return;
+    duplicateObject(state.selectedId);
+    refreshForSelection();
+    render();
+  });
 }
 
 
@@ -95,8 +109,11 @@ function _initSubTools() {
     render();
   });
 
-  // Reset: scoped to whichever sub-tool is active. With no sub-tool
-  // active, Reset is a no-op (users who want a full wipe click Revert).
+  // Reset: scoped to whichever sub-tool is active. Also snaps rotation,
+  // scale and position back to their values at edit-mode entry so the
+  // button reads as "undo for this tool" rather than a partial wipe.
+  // With no sub-tool active, Reset just calls the generic revertObject
+  // (same as the ↶ Undo-Edits button).
   resetBtn.addEventListener("click", () => {
     const id = state.selectedId;
     const obj = id ? findObject(id) : null;
@@ -108,21 +125,29 @@ function _initSubTools() {
       delete obj.warp;
       markDirty();
     }
+    revertObject(id);
+    _syncSliderFromObject();
     render();
   });
 
-  // Revert to original: wipes BOTH shear and warp regardless of which
-  // sub-tool (if any) is active. The image renders straight from the
-  // catalog bytes again.
+  // Revert to original: wipes BOTH shear and warp AND rolls rotation /
+  // scale / position back to the pre-edit snapshot. Confirmation first.
   revertBtn.addEventListener("click", () => {
     const id = state.selectedId;
     const obj = id ? findObject(id) : null;
     if (!obj) return;
-    if (obj.shear || obj.warp) {
-      delete obj.shear;
-      delete obj.warp;
-      markDirty();
-    }
+    const ok = window.confirm(
+      "Revert this item to the original catalog image?\n\n" +
+      "All shear / warp applied to this item will be removed AND the " +
+      "rotation / scale / position you changed in this edit session " +
+      "will be rolled back. The catalog file itself is not affected."
+    );
+    if (!ok) return;
+    delete obj.shear;
+    delete obj.warp;
+    revertObject(id);
+    _syncSliderFromObject();
+    markDirty();
     render();
   });
 }

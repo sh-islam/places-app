@@ -45,7 +45,14 @@ const WORLD_H = 1000;
 
 function _fitMetrics(rect) {
   const r = rect || canvas.getBoundingClientRect();
-  const fit = Math.min(r.width / WORLD_W, r.height / WORLD_H);
+  // COVER fit: world always fills the scene rect. Some of the world
+  // (outside the axis that doesn't match aspect) ends up offscreen,
+  // but there are never empty bands around the world. Positions near
+  // the corners may be clipped on aspects very different from 1:1 —
+  // acceptable for this app; users keep items in the centre anyway.
+  // Also means a user zoom applies to BOTH bg and items together
+  // since everything lives under the same world transform.
+  const fit = Math.max(r.width / WORLD_W, r.height / WORLD_H);
   const offsetX = (r.width  - WORLD_W * fit) / 2;
   const offsetY = (r.height - WORLD_H * fit) / 2;
   return { fit, offsetX, offsetY, rect: r };
@@ -148,10 +155,17 @@ function _setZoom(nextZoom) {
 
 function _clampPan() {
   const v = state.view;
-  const minPanX = WORLD_W - WORLD_W * v.zoom;
-  const minPanY = WORLD_H - WORLD_H * v.zoom;
-  v.panX = Math.max(minPanX, Math.min(0, v.panX));
-  v.panY = Math.max(minPanY, Math.min(0, v.panY));
+  const rect = canvas.getBoundingClientRect();
+  // world→screen scale factor at current zoom
+  const ws = Math.max(rect.width / WORLD_W, rect.height / WORLD_H) * v.zoom;
+  // Hidden world (in world units) that the user can pan to reveal.
+  // At zoom=1 on aspects mismatched with the 1:1 world, cover-fit
+  // already hides some world on the short axis — that's the non-zero
+  // hidden value even without the user zooming in.
+  const hiddenX = Math.max(0, WORLD_W - rect.width / ws);
+  const hiddenY = Math.max(0, WORLD_H - rect.height / ws);
+  v.panX = Math.max(-hiddenX / 2, Math.min(hiddenX / 2, v.panX));
+  v.panY = Math.max(-hiddenY / 2, Math.min(hiddenY / 2, v.panY));
 }
 
 function _screenToWorld(sx, sy) {
@@ -176,19 +190,15 @@ export function render() {
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rect.width, rect.height);
-  // Background is drawn in SCREEN space so it cover-fills the scene on
-  // every device (no empty bands on wide phone aspects). Items live in
-  // WORLD space so their positions are cross-device consistent. The two
-  // don't need to share a coordinate system: the bg is ambience, items
-  // are the content that has to agree across devices.
-  _drawBackgroundCoverFit(rect);
-  // Fit world into the scene rect (contain; tiny letterbox bands on the
-  // axis the scene has extra room on — hidden under the bg draw above).
+  // World transform (cover-fit + user's view pan/zoom). Everything —
+  // bg and items — lives inside this so a user zoom scales them
+  // together and they don't drift relative to each other.
   const { fit, offsetX, offsetY } = _fitMetrics(rect);
   ctx.translate(offsetX, offsetY);
   ctx.scale(fit, fit);
   ctx.translate(state.view.panX, state.view.panY);
   ctx.scale(state.view.zoom, state.view.zoom);
+  _drawBackground();
   for (const obj of objectsByLayerAsc()) {
     _drawObject(obj);
   }
@@ -377,7 +387,7 @@ export function invalidateAlphaCache(url) {
 }
 
 
-function _drawBackgroundCoverFit(rect) {
+function _drawBackground() {
   const url = state.room.background;
   if (!url) return;
   const img = getCachedImage(url);
@@ -385,21 +395,18 @@ function _drawBackgroundCoverFit(rect) {
     loadImage(url).then(render).catch(() => {});
     return;
   }
-  // Cover-fit the bg into the scene rect (CSS px). Bg always fills edge
-  // to edge; some of the bg may be cropped on aspects different from
-  // the bg's natural aspect, but there are never empty bands. A small
-  // 2px bleed overdraws the canvas slightly so sub-pixel rounding on
-  // high-DPR mobile screens can't leave a 1-px green strip at the edge.
-  const BLEED = 2;
+  // ctx is already in world space (pan/zoom applied). Cover-fit the
+  // bg into the 1000×1000 world square so it extends past the world's
+  // visible area — combined with cover-fit world → scene, the bg
+  // always fills the visible scene without bands, and a user zoom
+  // just scales it along with items.
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
-  const targetW = rect.width  + BLEED * 2;
-  const targetH = rect.height + BLEED * 2;
-  const scale = Math.max(targetW / iw, targetH / ih);
+  const scale = Math.max(WORLD_W / iw, WORLD_H / ih);
   const dw = iw * scale;
   const dh = ih * scale;
-  const dx = (rect.width  - dw) / 2;
-  const dy = (rect.height - dh) / 2;
+  const dx = (WORLD_W - dw) / 2;
+  const dy = (WORLD_H - dh) / 2;
   ctx.drawImage(img, dx, dy, dw, dh);
 }
 

@@ -53,6 +53,26 @@ export function removeObject(id) {
   markDirty();
 }
 
+
+// Duplicate: deep-clones the object, snaps the copy to canvas centre
+// (world 500, 500), bumps it to the front-most layer, selects it. Keeps
+// the source's scale, rotation, flip, colour adjustments, shear and
+// warp so the copy looks identical at its new home. Returns the new id.
+export function duplicateObject(id) {
+  const src = findObject(id);
+  if (!src) return null;
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = nextId();
+  copy.position = { x: 500, y: 500 };
+  const maxLayer = state.room.objects.reduce(
+    (m, o) => Math.max(m, o.layer || 0), 0);
+  copy.layer = maxLayer + 1;
+  state.room.objects.push(copy);
+  state.selectedId = copy.id;
+  markDirty();
+  return copy.id;
+}
+
 // Prompt before removing — delete is destructive and un-undoable.
 // Returns true if the object was removed.
 export function confirmRemoveObject(id) {
