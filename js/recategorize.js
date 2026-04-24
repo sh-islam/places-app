@@ -6,11 +6,11 @@
 import { state } from "./state.js";
 import { api } from "./api.js";
 import { findObject } from "./objects.js";
-import { render } from "./canvas.js";
-// panel.js is NOT imported statically — it imports refreshRecategorize from
-// here, so a static import back creates a cycle that some browsers trip on
-// during module evaluation (empty exports seen at top-level, boot fails).
-// We resolve the function lazily inside _doMove() instead.
+// panel.js and canvas.js are NOT imported statically — panel imports
+// refreshRecategorize from here, and canvas in turn imports from panel,
+// forming a 3-way cycle (panel -> recategorize -> canvas -> panel). On
+// Chrome that yields empty-namespace bindings at boot and the app fails
+// to start. We resolve both lazily inside _doMove() instead.
 
 
 let _selCat = null;
@@ -105,6 +105,7 @@ async function _doMove() {
 
     const { refreshForSelection } = await import("./panel.js");
     refreshForSelection();
+    const { render } = await import("./canvas.js");
     render();
   } catch (err) {
     alert(`Move failed: ${err.message}`);
