@@ -1381,7 +1381,6 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .action-stack .round-btn,
   .action-stack .icon-btn { width: 46px; height: 46px; }
   .action-stack .round-btn { font-size: 16px; }
-  .action-stack .round-btn.rotate-btn { font-size: 24px; }
   .mode        { gap: 4px; }
   .rotate-row  { gap: 4px; }
   .subtool-row .btn-pill { font-size: 11px; padding: 4px 6px; }
@@ -1403,7 +1402,6 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .action-stack .round-btn,
   .action-stack .icon-btn { width: 42px; height: 42px; }
   .action-stack .round-btn { font-size: 15px; }
-  .action-stack .round-btn.rotate-btn { font-size: 22px; }
   .panel-header { padding: 2px 0 4px; margin-bottom: 6px; }
   .edit-top { padding: 0; }
 }
@@ -1449,7 +1447,6 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .mode[data-mode="edit"] .action-stack .round-btn,
   .mode[data-mode="edit"] .action-stack .icon-btn { width: 30px; height: 30px; }
   .mode[data-mode="edit"] .action-stack .round-btn { font-size: 12px; }
-  .mode[data-mode="edit"] .action-stack .round-btn.rotate-btn { font-size: 18px; }
   .mode[data-mode="edit"] { gap: 2px; }
   .mode[data-mode="edit"] .subtool-row .btn-pill {
     font-size: 9px; padding: 2px 4px;
@@ -1506,21 +1503,6 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 .round-btn:active { transform: translateY(1px); box-shadow: inset 0 -1px 2px rgba(0,0,0,0.3); }
 .rotate-btn { background: linear-gradient(180deg, #4a8aff, #2861d4); }
-/* ⟲/⟳ glyphs look small next to +/− at matched font-size because
-   they're symbol-font characters with slimmer strokes. Bump
-   font-size 1.5× and thicken the outline via text-stroke so the
-   rotate icons visually dominate the button they sit in like
-   +/− do in theirs. */
-.action-stack .round-btn.rotate-btn {
-  font-size: 30px;
-  /* Just enough text-stroke to catch ⟲/⟳'s thin symbol-font
-     strokes up to ≈ bold +/−, not so much that they turn into
-     chunky blocks. Tweaked down from 2px after user said 2 read
-     as too thick next to the +/−. */
-  -webkit-text-stroke: 0.75px currentColor;
-  text-stroke: 0.75px currentColor;
-  line-height: 1;
-}
 .scale-up   { background: linear-gradient(180deg, #e85a5a, #b03333); }
 .scale-down { background: linear-gradient(180deg, #e85a5a, #b03333); }
 
