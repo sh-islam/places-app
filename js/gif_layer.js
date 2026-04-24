@@ -1,23 +1,22 @@
-// DOM overlay that hosts animated GIFs as <img> elements layered over
-// the canvas. The browser handles GIF frame playback natively when the
-// image is in the DOM; canvas drawImage only ever paints the first
-// frame, which is why GIF objects are routed here instead of through
-// the regular canvas object pass.
+// DOM overlay that hosts items as <img> elements stacked over the
+// canvas. Every non-warped object (PNG or GIF) is routed here so
+// that z-order via CSS z-index honours obj.layer across the whole
+// scene — not just among GIFs. Canvas is left with the background
+// plus any warped items (4-point perspective warp has no CSS
+// equivalent, so those still need the pixel-remap fallback).
 //
-// Each render() of the canvas calls syncGifLayer() with the same
-// per-frame metrics the canvas uses (fit, view zoom/pan, scene rect),
-// so the CSS matrix on each <img> mirrors the canvas transform exactly
-// — translate, rotate, scale, skew/shear and CSS filter all line up
-// pixel-perfect with what canvas-rendered objects would have looked
-// like, just with animation preserved.
+// Each render() of the canvas calls syncOverlayLayer() with the
+// scene rect; the CSS matrix on each <img> mirrors the canvas's
+// OuterView * Fit * T(pos) * R * S * Sh chain exactly so positions
+// and transforms line up. CSS filter carries hue/sat/brightness/
+// contrast and the selected-glow drop-shadow. Hit-testing keeps
+// going through the canvas's cached images for alpha accuracy.
 //
 // Limitations:
-//   • Per-instance perspective warp (obj.warp.corners) needs pixel
-//     remapping that CSS doesn't natively express, so GIFs with warp
-//     fall back to canvas rendering (loses animation, gains warp).
-//   • Z-order: GIFs always paint above canvas-drawn items, since the
-//     overlay is one layer on top. Mixed-layer scenes interleave only
-//     within each side (canvas items keep their order, GIFs keep theirs).
+//   • Per-instance perspective warp (obj.warp.corners) falls back
+//     to canvas rendering (loses animation for GIFs, and sits
+//     below the overlay layer — if a warped PNG needs to appear
+//     above an overlay item, that one edge case isn't handled).
 
 import { state } from "./state.js";
 import { assetUrl } from "./config.js";
@@ -39,18 +38,20 @@ export function initGifLayer(el) {
 }
 
 
-export function isAnimatedGifObj(obj) {
-  // Treat .gif urls as animated by default. Single-frame GIFs would
-  // technically work fine on canvas too, but routing them through the
-  // overlay is harmless — and the upload path now keeps multi-frame
-  // GIFs as .gif while flattening single-frame ones to .png, so a
-  // .gif extension here is a strong signal that animation matters.
-  // Warped GIFs go back to canvas because CSS can't do 4-point warp.
+export function shouldRenderViaOverlay(obj) {
+  // Every non-warped object renders through the DOM overlay so CSS
+  // z-index can interleave PNGs and GIFs by obj.layer. Warped items
+  // need canvas's pixel-remap pipeline so they stay on canvas (and
+  // GIFs with warp lose their animation — known trade-off).
   if (!obj || !obj.url) return false;
-  if (!obj.url.toLowerCase().endsWith(".gif")) return false;
   if (obj.warp && obj.warp.corners) return false;
   return true;
 }
+
+
+// Kept for backwards compatibility with any external callers — the
+// overlay now serves all non-warped items, not just GIFs.
+export const isAnimatedGifObj = shouldRenderViaOverlay;
 
 
 // Build the CSS matrix(a,b,c,d,e,f) that takes an <img>'s local
@@ -115,17 +116,15 @@ function _composeFilter(obj, selected) {
 
 
 // Run after every canvas render. Adds/updates/removes <img> elements
-// so the overlay matches the current set of GIF objects.
-export function syncGifLayer(rect) {
+// so the overlay matches the current set of overlay-eligible objects.
+export function syncOverlayLayer(rect) {
   if (!layerEl) return;
   const seen = new Set();
 
-  // Walk the same back-to-front order the canvas uses so DOM order
-  // approximates layer order within the overlay.
   const sorted = [...state.room.objects].sort((a, b) => a.layer - b.layer);
   for (const obj of sorted) {
     if (obj.hidden) continue;
-    if (!isAnimatedGifObj(obj)) continue;
+    if (!shouldRenderViaOverlay(obj)) continue;
 
     let img = _imgs.get(obj.id);
     if (!img) {
@@ -133,27 +132,18 @@ export function syncGifLayer(rect) {
       img.src = assetUrl(obj.url);
       img.alt = "";
       img.draggable = false;
-      // crossOrigin not strictly needed for DOM display, but matches
-      // the canvas-side <img> creation in images.js for consistency.
       img.crossOrigin = "anonymous";
       layerEl.appendChild(img);
       _imgs.set(obj.id, img);
     } else if (img.parentNode !== layerEl) {
-      // Re-attach if something detached it (e.g. layerEl was rebuilt).
       layerEl.appendChild(img);
     }
 
-    // If the source URL changed (shouldn't happen mid-session for GIFs,
-    // but cheap to handle), update src.
     if (img.dataset.url !== obj.url) {
       img.src = assetUrl(obj.url);
       img.dataset.url = obj.url;
     }
 
-    // Use the shared cache for dimensions — populated reliably at boot
-    // via preloadAll. Hit-testing also relies on this same cache, so a
-    // cache-miss means the GIF can't be selected either; trigger a load
-    // and re-render so the next frame can place it correctly.
     const cached = getCachedImage(obj.url);
     if (!cached) {
       img.style.visibility = "hidden";
@@ -171,12 +161,14 @@ export function syncGifLayer(rect) {
     img.style.height = h + "px";
     img.style.transform = _buildMatrix(obj, w, h, rect);
     img.style.filter = _composeFilter(obj, obj.id === state.selectedId);
+    // Z-index = layer so CSS can honour obj.layer across the whole
+    // scene — PNGs and GIFs interleave correctly instead of all
+    // overlay items sitting above all canvas items.
+    img.style.zIndex = String(obj.layer);
 
     seen.add(obj.id);
   }
 
-  // Drop overlays for objects that are gone (deleted, hidden, route
-  // changed to canvas because warp got applied, room switched, etc.).
   for (const [id, img] of _imgs) {
     if (!seen.has(id)) {
       img.remove();
@@ -184,3 +176,7 @@ export function syncGifLayer(rect) {
     }
   }
 }
+
+
+// Backwards-compatible export name for canvas.js's existing import.
+export const syncGifLayer = syncOverlayLayer;

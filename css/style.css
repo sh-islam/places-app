@@ -470,15 +470,24 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   touch-action: none;
 }
 
-/* GIF overlay layer — siblings of the canvas, fills the same box.
-   Each child <img> is positioned by a CSS matrix that mirrors the
-   canvas object transform so animated GIFs land at the same place
-   and orient the same way as canvas-rendered items. */
+/* Overlay layer — siblings of the canvas, fills the same box. All
+   non-warped items (PNG + GIF) render here as positioned <img>s so
+   CSS z-index can interleave them correctly by obj.layer. */
 .gif-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+}
+/* Top canvas that only holds sub-tool handles (shear / warp drag
+   points). Sits above .gif-layer so handles are always visible
+   even when the item being edited is also in the overlay. */
+.handles-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 .gif-layer img {
   position: absolute;

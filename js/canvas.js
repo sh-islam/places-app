@@ -22,6 +22,11 @@ import { isAnimatedGifObj, syncGifLayer } from "./gif_layer.js";
 
 let canvas = null;
 let ctx = null;
+// Top canvas that only holds sub-tool handles (shear / warp). Sits
+// above the DOM overlay layer so handles aren't hidden by the item
+// being edited. Initialised in initCanvas.
+let handlesCanvas = null;
+let handlesCtx = null;
 
 // Either an object-drag or a pan-drag (when zoomed). Mutually exclusive.
 let drag = null;          // { id, offsetX, offsetY, moved }
@@ -77,6 +82,8 @@ const _alphaCache = new Map();
 export function initCanvas(canvasEl) {
   canvas = canvasEl;
   ctx = canvas.getContext("2d");
+  handlesCanvas = document.getElementById("handles-canvas");
+  handlesCtx = handlesCanvas ? handlesCanvas.getContext("2d") : null;
   _resizeCanvasToBacking();
   window.addEventListener("resize", () => {
     _resizeCanvasToBacking();
@@ -134,6 +141,11 @@ function _resizeCanvasToBacking() {
   canvas.width  = Math.floor(rect.width  * dpr);
   canvas.height = Math.floor(rect.height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (handlesCanvas) {
+    handlesCanvas.width  = canvas.width;
+    handlesCanvas.height = canvas.height;
+    handlesCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
 }
 
 
@@ -244,6 +256,10 @@ export function render() {
   const _gifLayer = document.getElementById("gif-layer");
   if (getMode() === "advanced-edit") {
     if (_gifLayer) _gifLayer.style.display = "none";
+    if (handlesCtx) {
+      const hr = handlesCanvas.getBoundingClientRect();
+      handlesCtx.clearRect(0, 0, hr.width, hr.height);
+    }
     return;
   }
   if (_gifLayer && _gifLayer.style.display === "none") _gifLayer.style.display = "";
@@ -272,21 +288,28 @@ export function render() {
   ctx.translate(offsetX, offsetY);
   ctx.scale(fit, fit);
   for (const obj of objectsByLayerAsc()) {
-    // Animated GIFs render through the DOM overlay (canvas drawImage
-    // would only paint frame 0). Warped GIFs fall back to canvas — see
-    // isAnimatedGifObj for the routing rule.
+    // Every non-warped item goes through the DOM overlay (GIFs need
+    // it for animation; PNGs need it so CSS z-index honours layer).
+    // Only warped items still render on canvas — they need the
+    // pixel-remap pipeline CSS can't match.
     if (isAnimatedGifObj(obj)) continue;
     _drawObject(obj);
   }
-  // Sub-tool handles for the selected item (shear / warp).
+
+  // Mirror canvas transforms onto DOM-overlay items so they sit
+  // exactly where canvas rendering would have placed them.
+  syncGifLayer(rect);
+
+  // Sub-tool handles draw on a separate top-layer canvas above the
+  // overlay so they aren't hidden by the item being edited.
+  if (handlesCtx) {
+    const hr = handlesCanvas.getBoundingClientRect();
+    handlesCtx.clearRect(0, 0, hr.width, hr.height);
+  }
   if (state.editSubTool && state.selectedId) {
     const sel = findObject(state.selectedId);
     if (sel) _drawSubToolOverlay(sel);
   }
-
-  // Mirror canvas transforms onto any DOM-overlay GIFs so they sit
-  // exactly where canvas rendering would have placed them.
-  syncGifLayer(rect);
 
   if (_afterRender) _afterRender();
 }
@@ -298,12 +321,13 @@ function _drawSubToolOverlay(obj) {
   if (!img) return;
   const w = img.naturalWidth;
   const h = img.naturalHeight;
-  // Drawn in SCREEN space so handles stay constant size regardless of
-  // object scale or scene zoom. We save + reset to CSS-px transform,
-  // draw, then restore.
-  ctx.save();
+  // Drawn in SCREEN space on the top-layer handles canvas so handles
+  // stay constant size regardless of object scale or scene zoom, and
+  // aren't hidden by the DOM-overlay item being edited.
+  if (!handlesCtx) return;
+  handlesCtx.save();
   const dpr = window.devicePixelRatio || 1;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  handlesCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
   if (state.editSubTool === "shear") {
     const nw = _worldToScreen(_objLocalToWorld(obj, -w / 2, -h / 2));
@@ -323,7 +347,7 @@ function _drawSubToolOverlay(obj) {
     for (const p of pts) _drawHandle(p);
   }
 
-  ctx.restore();
+  handlesCtx.restore();
 }
 
 
@@ -363,27 +387,29 @@ function _worldToScreen(p) {
 
 
 function _drawHandle(p) {
-  ctx.beginPath();
-  ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
-  ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
-  ctx.strokeStyle = "#3a7afe";
-  ctx.lineWidth = 2;
-  ctx.fill();
-  ctx.stroke();
+  const c = handlesCtx;
+  c.beginPath();
+  c.arc(p.x, p.y, 9, 0, Math.PI * 2);
+  c.fillStyle = "rgba(255, 255, 255, 0.95)";
+  c.strokeStyle = "#3a7afe";
+  c.lineWidth = 2;
+  c.fill();
+  c.stroke();
 }
 
 
 function _drawDashedQuad(pts) {
-  ctx.save();
-  ctx.setLineDash([5, 4]);
-  ctx.strokeStyle = "#3a7afe";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.restore();
+  const c = handlesCtx;
+  c.save();
+  c.setLineDash([5, 4]);
+  c.strokeStyle = "#3a7afe";
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) c.lineTo(pts[i].x, pts[i].y);
+  c.closePath();
+  c.stroke();
+  c.restore();
 }
 
 
