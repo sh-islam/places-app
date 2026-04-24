@@ -6,11 +6,10 @@
 import { state } from "./state.js";
 import { api } from "./api.js";
 import { findObject } from "./objects.js";
-// panel.js and canvas.js are NOT imported statically — panel imports
-// refreshRecategorize from here, and canvas in turn imports from panel,
-// forming a 3-way cycle (panel -> recategorize -> canvas -> panel). On
-// Chrome that yields empty-namespace bindings at boot and the app fails
-// to start. We resolve both lazily inside _doMove() instead.
+// panel.js and canvas.js are NOT imported statically — canvas.js imports
+// from panel.js, so if recategorize.js also pulled them in statically we'd
+// risk a cycle at boot (empty-namespace bindings on Chrome). We resolve
+// both lazily inside _doMove() instead, which only runs on user click.
 
 
 let _selCat = null;
@@ -30,12 +29,21 @@ export function initRecategorize() {
   });
   _selSub.addEventListener("change", _syncMoveEnabled);
   _selMoveBtn.addEventListener("click", _doMove);
+
+  // Watch the selected-mode div for "active" class changes so we can
+  // repopulate the dropdowns each time the user selects a different
+  // item. This avoids panel.js needing to import from here — prevents
+  // any static import cycles.
+  const selectedMode = document.querySelector('[data-mode="selected"]');
+  if (selectedMode) {
+    new MutationObserver(() => {
+      if (selectedMode.classList.contains("active")) _refresh();
+    }).observe(selectedMode, { attributes: true, attributeFilter: ["class"] });
+  }
 }
 
 
-// Called from panel._refreshSelectedView() whenever the selected item changes
-// so the dropdowns reflect the current asset's category/subcategory.
-export function refreshRecategorize() {
+function _refresh() {
   if (!_selCat || !state.isAdmin) return;
   const obj = state.selectedId ? findObject(state.selectedId) : null;
   if (!obj) return;

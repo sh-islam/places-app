@@ -195,5 +195,12 @@ function _onNavClick(evt) {
 
 boot().catch((err) => {
   console.error("Boot failed:", err);
-  alert("Failed to start the app — check the console.");
+  // Include the actual error message + stack in the alert so we don't
+  // need the user to paste from the devtools console to diagnose.
+  const stackLine = (err?.stack || "").split("\n").slice(0, 3).join("\n");
+  alert(
+    "Failed to start the app.\n\n" +
+    `${err?.name || "Error"}: ${err?.message || err}\n\n` +
+    stackLine
+  );
 });
