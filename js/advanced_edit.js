@@ -80,6 +80,10 @@ async function _enter() {
   _dirty = false;
 
   _ensureOverlay();
+  // Hide the scene's own UI (zoom +/−/reload, background picker, room
+  // dots) so they don't overlap the editor view. Dropped via a body
+  // class so mobile and desktop layouts both inherit the change.
+  document.body.classList.add("adv-editing");
   const { setMode } = await import("./panel.js");
   setMode("advanced-edit");
   _setTool(null);
@@ -117,6 +121,7 @@ function _cleanupState() {
   _sourceUrl = null;
   _dirty = false;
   _renderFit = null;
+  document.body.classList.remove("adv-editing");
   for (const btn of document.querySelectorAll(".adv-tool-btn")) {
     btn.classList.remove("active");
   }

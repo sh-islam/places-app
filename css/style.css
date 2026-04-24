@@ -331,6 +331,14 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .scene.ui-hidden .inventory-btn,
 .scene.ui-hidden .room-dots { display: none; }
 
+/* Advanced edit mode takes over the scene canvas; hide the zoom +/−/⟲
+   controls, background picker, and room dots so they can't overlap the
+   editor preview or tool handles. */
+body.adv-editing .zoom-controls,
+body.adv-editing .bg-picker-btn,
+body.adv-editing .bg-popover,
+body.adv-editing .room-dots { display: none !important; }
+
 .home-tools {
   display: flex;
   flex-direction: column;
