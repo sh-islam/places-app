@@ -213,11 +213,13 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 
 /* Register --halo-mid-stop so keyframes can interpolate between
    percentages smoothly (plain CSS-var animation doesn't interpolate,
-   it steps). */
+   it steps). Default 65% = mid-glow, visible at rest so there's always
+   some halo behind the phone. The intro pulse swings above/around this
+   and returns to 65% so the animation ends seamlessly. */
 @property --halo-mid-stop {
   syntax: '<percentage>';
   inherits: true;
-  initial-value: 55%;
+  initial-value: 65%;
 }
 
 .phone-frame {
@@ -255,13 +257,17 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
     border-radius: 36px;
   }
 
-  /* 10s glow pulse on first boot. Adds a class to body via main.js. */
+  /* Glow pulse on first boot — 5 iterations × 2s = 10s total, with
+     `forwards` so the animation ends at its 100% frame (65%, same as
+     the static default) instead of snapping. Each iteration also
+     starts/ends at 65%, so whichever cycle we land on, the outgoing
+     frame matches the resting state. */
   .app-body.intro-pulse {
-    animation: intro-halo-pulse 1.8s ease-in-out infinite;
+    animation: intro-halo-pulse 2s ease-in-out 5 forwards;
   }
   @keyframes intro-halo-pulse {
-    0%, 100% { --halo-mid-stop: 55%; }
-    50%      { --halo-mid-stop: 78%; }
+    0%, 100% { --halo-mid-stop: 65%; }
+    50%      { --halo-mid-stop: 80%; }
   }
   @media (prefers-reduced-motion: reduce) {
     .app-body.intro-pulse { animation: none; }
@@ -331,13 +337,16 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .scene.ui-hidden .inventory-btn,
 .scene.ui-hidden .room-dots { display: none; }
 
-/* Advanced edit mode takes over the scene canvas; hide the zoom +/−/⟲
-   controls, background picker, and room dots so they can't overlap the
-   editor preview or tool handles. */
-body.adv-editing .zoom-controls,
+/* Advanced edit mode takes over the scene canvas; hide the scene's own
+   zoom +/−/⟲ controls, background picker, and room dots so they can't
+   overlap the editor preview or tool handles. The editor's OWN zoom
+   cluster (.adv-zoom-controls) stays visible. */
+body.adv-editing .zoom-controls:not(.adv-zoom-controls),
 body.adv-editing .bg-picker-btn,
 body.adv-editing .bg-popover,
 body.adv-editing .room-dots { display: none !important; }
+.adv-zoom-controls { display: none; }
+body.adv-editing .adv-zoom-controls { display: flex; }
 
 .home-tools {
   display: flex;
@@ -1439,6 +1448,34 @@ body.adv-editing .room-dots { display: none !important; }
   transform: translate(-50%, -50%);
   cursor: pointer;
 }
+/* Scale-crop guides: two dashed diagonals shown inside the rect when
+   aspect-lock is on. Stretches to fill whatever size the rect is
+   (preserveAspectRatio=none on the SVG). */
+.adv-crop-guides {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  display: none;
+}
+.adv-crop-rect.locked .adv-crop-guides { display: block; }
+.adv-crop-guides line {
+  stroke: rgba(255, 255, 255, 0.55);
+  stroke-width: 0.8;
+  stroke-dasharray: 2 2;
+  vector-effect: non-scaling-stroke;
+}
+.adv-crop-lock {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.adv-crop-lock input { accent-color: var(--accent); }
 
 /* Perspective handles: four draggable circles at the quad's corners */
 .adv-persp-handle {
@@ -1451,17 +1488,30 @@ body.adv-editing .room-dots { display: none !important; }
   transform: translate(-50%, -50%);
   cursor: grab;
   touch-action: none;
+  z-index: 2;
 }
 .adv-persp-handle:active { cursor: grabbing; }
 .adv-persp-svg {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 1;
 }
 .adv-persp-svg line {
   stroke: var(--accent);
   stroke-width: 1.5;
   stroke-dasharray: 5 4;
+}
+/* Live-preview canvas for perspective warp. CSS matrix3d on this
+   element shows the warp in real time as corners drag (way cheaper
+   than running the JS pixel sampler every pointermove). Below the
+   handles + SVG so they stay clickable. */
+.adv-persp-preview {
+  position: absolute;
+  pointer-events: none;
+  transform-origin: 0 0;
+  will-change: transform;
+  z-index: 0;
 }
 
 /* Shape toggle chip group re-uses .chip styling */

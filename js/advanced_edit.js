@@ -25,12 +25,18 @@ let _baseCanvas = null;      // last-saved state (for Revert)
 let _sourceObjId = null;
 let _sourceUrl = null;
 let _dirty = false;
+let _tool = null;            // currently active tool name
 let _toolHandle = null;      // {render?, refresh?, destroy}
 let _renderFit = null;       // {scale, offsetX, offsetY, renderedW, renderedH}
 // Editor-only scene chrome: solid bg fill vs checkerboard transparency.
 // Enabled by default at hue 0 → near-black (hsl(0, 30%, 6%)).
 let _bgEnabled = true;
 let _bgHue = 0;
+// Preview zoom multiplier on top of the fit-to-canvas scale. 1 = fit.
+let _userZoom = 1;
+const ZOOM_STEP = 1.25;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 8;
 // Save-as-copy form refs (resolved during initAdvancedEdit).
 let _copyForm = null;
 let _copyCatInput = null;
@@ -65,6 +71,12 @@ export function initAdvancedEdit() {
   for (const btn of document.querySelectorAll(".adv-tool-btn")) {
     btn.addEventListener("click", () => _setTool(btn.dataset.tool));
   }
+  document.getElementById("adv-zoom-in-btn")?.addEventListener("click",
+    () => _setZoom(_userZoom * ZOOM_STEP));
+  document.getElementById("adv-zoom-out-btn")?.addEventListener("click",
+    () => _setZoom(_userZoom / ZOOM_STEP));
+  document.getElementById("adv-zoom-reset-btn")?.addEventListener("click",
+    () => _setZoom(1));
   const bgToggle = document.getElementById("adv-bg-toggle");
   const bgHue    = document.getElementById("adv-bg-hue");
   if (bgToggle) bgToggle.addEventListener("change", () => {
@@ -112,6 +124,7 @@ async function _enter() {
   _baseCanvas = _mkCanvas(img.naturalWidth, img.naturalHeight);
   _baseCanvas.getContext("2d").drawImage(img, 0, 0);
   _dirty = false;
+  _userZoom = 1;
 
   _ensureOverlay();
   // Hide the scene's own UI (zoom +/−/reload, background picker, room
@@ -384,6 +397,15 @@ function _loadFresh(origUrl, version) {
 }
 
 
+function _setZoom(z) {
+  _userZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
+  _rerender();
+  // Tools with DOM overlays (crop, perspective) reposition from their
+  // own render() via _rerender above. Erase's cursor stays pointer-
+  // bound so no explicit redraw needed.
+}
+
+
 function _updateSaveButton() {
   const saveBtn = document.getElementById("adv-save-btn");
   if (saveBtn) saveBtn.disabled = !_dirty;
@@ -413,6 +435,7 @@ function _mkCanvas(w, h) {
 function _setTool(name) {
   if (_toolHandle?.destroy) _toolHandle.destroy();
   _toolHandle = null;
+  _tool = name;
   for (const btn of document.querySelectorAll(".adv-tool-btn")) {
     btn.classList.toggle("active", btn.dataset.tool === name);
   }
@@ -445,7 +468,9 @@ function _rerender() {
 
   const availW = rect.width - EDGE_MARGIN * 2;
   const availH = rect.height - EDGE_MARGIN * 2;
-  const scale = Math.min(availW / _workCanvas.width, availH / _workCanvas.height);
+  const fitScale = Math.min(availW / _workCanvas.width, availH / _workCanvas.height);
+  // User-controlled zoom multiplier on top of fit; 1 = original fit behaviour.
+  const scale = fitScale * _userZoom;
   const renderedW = _workCanvas.width * scale;
   const renderedH = _workCanvas.height * scale;
   const offsetX = (rect.width - renderedW) / 2;
@@ -455,7 +480,12 @@ function _rerender() {
   if (!_bgEnabled) {
     _drawCheckerboard(ctx, offsetX, offsetY, renderedW, renderedH);
   }
-  ctx.drawImage(_workCanvas, offsetX, offsetY, renderedW, renderedH);
+  // Perspective tool's DOM preview (CSS matrix3d on a canvas element)
+  // shows the live warp — skip the scene-canvas drawImage so the two
+  // don't stack. Every other tool draws normally.
+  if (_tool !== "perspective") {
+    ctx.drawImage(_workCanvas, offsetX, offsetY, renderedW, renderedH);
+  }
 
   if (_overlayEl) {
     _overlayEl.style.width  = `${rect.width}px`;
@@ -629,9 +659,25 @@ function _makeEraseTool() {
 // ---------- Crop ----------
 function _makeCropTool() {
   let rect = { x: 0, y: 0, w: _workCanvas.width, h: _workCanvas.height };
+  let lockAspect = false;
 
   const rectEl = document.createElement("div");
   rectEl.className = "adv-crop-rect";
+  // Diagonal "scale crop" guides (two hatched lines inside the rect).
+  // Shown only when aspect-lock is on; preserveAspectRatio="none" lets
+  // the SVG stretch to fill the rect at any size.
+  const SVG_NS_C = "http://www.w3.org/2000/svg";
+  const guides = document.createElementNS(SVG_NS_C, "svg");
+  guides.setAttribute("class", "adv-crop-guides");
+  guides.setAttribute("preserveAspectRatio", "none");
+  guides.setAttribute("viewBox", "0 0 100 100");
+  for (const [x1, y1, x2, y2] of [[0,0,100,100], [100,0,0,100]]) {
+    const ln = document.createElementNS(SVG_NS_C, "line");
+    ln.setAttribute("x1", x1); ln.setAttribute("y1", y1);
+    ln.setAttribute("x2", x2); ln.setAttribute("y2", y2);
+    guides.appendChild(ln);
+  }
+  rectEl.appendChild(guides);
   _overlayEl.appendChild(rectEl);
 
   const handleEls = {};
@@ -647,11 +693,28 @@ function _makeCropTool() {
   const controls = document.getElementById("adv-tool-controls");
   controls.innerHTML = `
     <p class="muted small">Drag the rectangle or its handles. Apply crops to the new bounds.</p>
+    <label class="adv-crop-lock">
+      <input type="checkbox" id="crop-lock"/>
+      <span>Scale crop (lock aspect)</span>
+    </label>
     <div class="adv-apply-row">
       <button type="button" class="btn-pill" id="crop-reset">Reset</button>
       <button type="button" class="btn-pill primary" id="crop-apply">Apply Crop</button>
     </div>
   `;
+  const lockCheckbox = controls.querySelector("#crop-lock");
+  lockCheckbox.addEventListener("change", () => {
+    lockAspect = lockCheckbox.checked;
+    rectEl.classList.toggle("locked", lockAspect);
+    // Conform the current rect to the source aspect if it isn't already.
+    if (lockAspect) {
+      const ar = _workCanvas.width / _workCanvas.height;
+      rect.h = rect.w / ar;
+      rect.h = Math.min(rect.h, _workCanvas.height - rect.y);
+      rect.w = rect.h * ar;
+      _renderOverlay();
+    }
+  });
   controls.querySelector("#crop-reset").addEventListener("click", () => {
     rect = { x: 0, y: 0, w: _workCanvas.width, h: _workCanvas.height };
     _renderOverlay();
@@ -702,6 +765,23 @@ function _makeCropTool() {
       if (drag.mode.includes("e")) { r.w += dix; }
       if (drag.mode.includes("n")) { r.y += diy; r.h -= diy; }
       if (drag.mode.includes("s")) { r.h += diy; }
+    }
+    // Scale-crop: when aspect is locked AND a corner is dragged, force
+    // the source image's aspect ratio. The dim whose relative change is
+    // larger drives, the other follows, and we re-anchor the opposite
+    // corner so it stays put. Edge handles still drag a single axis
+    // (aspect lock doesn't really have a useful meaning there).
+    if (lockAspect && drag.mode !== "move" && drag.mode.length === 2) {
+      const ar = _workCanvas.width / _workCanvas.height;
+      const relW = Math.abs(r.w - drag.rect.w) / Math.max(1, drag.rect.w);
+      const relH = Math.abs(r.h - drag.rect.h) / Math.max(1, drag.rect.h);
+      if (relW >= relH) {
+        r.h = r.w / ar;
+      } else {
+        r.w = r.h * ar;
+      }
+      if (drag.mode.includes("n")) r.y = (drag.rect.y + drag.rect.h) - r.h;
+      if (drag.mode.includes("w")) r.x = (drag.rect.x + drag.rect.w) - r.w;
     }
     // Clamp to image bounds and minimum size.
     const minSide = 4;
@@ -864,10 +944,23 @@ function _makeShearTool() {
 
 // ---------- Perspective warp (4-corner homography) ----------
 function _makePerspectiveTool() {
+  // w0/h0 are captured here only for the initial corner layout; once
+  // Apply Warp runs, _workCanvas's dimensions can change, so every
+  // render / apply reads them fresh from _workCanvas.
   const w0 = _workCanvas.width;
   const h0 = _workCanvas.height;
   // TL, TR, BR, BL in IMAGE coordinates.
   let corners = [[0, 0], [w0, 0], [w0, h0], [0, h0]];
+
+  // Live-preview canvas: a copy of the work canvas positioned absolutely
+  // inside the overlay and warped via CSS matrix3d each frame. Adding
+  // FIRST so the SVG lines + handles sit on top of it in DOM order.
+  const previewEl = document.createElement("canvas");
+  previewEl.className = "adv-persp-preview";
+  previewEl.width  = _workCanvas.width;
+  previewEl.height = _workCanvas.height;
+  previewEl.getContext("2d").drawImage(_workCanvas, 0, 0);
+  _overlayEl.appendChild(previewEl);
 
   const SVG_NS = "http://www.w3.org/2000/svg";
   const svg = document.createElementNS(SVG_NS, "svg");
@@ -935,7 +1028,34 @@ function _makePerspectiveTool() {
 
   function _renderOverlay() {
     if (!_renderFit) return;
+    const fit = _renderFit;
     const pts = corners.map(([x, y]) => _imageToScreen(x, y));
+
+    // Live preview: the element is parked at (offsetX, offsetY) at its
+    // natural pixel dimensions; matrix3d maps its [0,0]-[w,h] corners
+    // to the dragged quad (in screen space, already translated by the
+    // parked offset). Updating every frame gives real-time warping
+    // without running the full JS pixel sampler.
+    const w = _workCanvas.width;
+    const h = _workCanvas.height;
+    previewEl.style.left = `${fit.offsetX}px`;
+    previewEl.style.top  = `${fit.offsetY}px`;
+    previewEl.style.width  = `${w}px`;
+    previewEl.style.height = `${h}px`;
+    // Destination corners in element-local space: corners (in image
+    // coords) × fit.scale, since the element's local size is w × h.
+    const dst = corners.map(([x, y]) => [x * fit.scale, y * fit.scale]);
+    const H = _computeHomography([[0, 0], [w, 0], [w, h], [0, h]], dst);
+    if (H) {
+      // matrix3d is column-major. Our H is row-major [h0..h8]. Embed in
+      // a 4x4 with z-axis unchanged (col 3 = [0,0,1,0]).
+      previewEl.style.transform =
+        `matrix3d(${H[0]}, ${H[3]}, 0, ${H[6]}, ` +
+        `${H[1]}, ${H[4]}, 0, ${H[7]}, ` +
+        `0, 0, 1, 0, ` +
+        `${H[2]}, ${H[5]}, 0, ${H[8]})`;
+    }
+
     // SVG covers the overlay.
     svg.setAttribute("width",  _overlayEl.clientWidth);
     svg.setAttribute("height", _overlayEl.clientHeight);
@@ -954,8 +1074,10 @@ function _makePerspectiveTool() {
   }
 
   async function _applyWarp() {
-    // Map source rect (0,0)-(w0,h0) → dest quad `corners`.
-    const src = [[0, 0], [w0, 0], [w0, h0], [0, h0]];
+    // Map source rect (0,0)-(w,h) → dest quad `corners`.
+    const w = _workCanvas.width;
+    const h = _workCanvas.height;
+    const src = [[0, 0], [w, 0], [w, h], [0, h]];
     const H = _computeHomography(src, corners);
     if (!H) { alert("Degenerate quad — reset and try again."); return; }
     const xs = corners.map((c) => c[0]);
@@ -1009,6 +1131,12 @@ function _makePerspectiveTool() {
     _workCanvas = out;
     corners = [[0, 0], [_workCanvas.width, 0],
                [_workCanvas.width, _workCanvas.height], [0, _workCanvas.height]];
+    // Repaint live-preview canvas from the new work canvas so its
+    // matrix3d transform (which will reset to identity now) shows the
+    // just-warped result.
+    previewEl.width  = _workCanvas.width;
+    previewEl.height = _workCanvas.height;
+    previewEl.getContext("2d").drawImage(_workCanvas, 0, 0);
     _dirty = true;
     _updateSaveButton();
     _rerender();
@@ -1020,6 +1148,7 @@ function _makePerspectiveTool() {
       _overlayEl.removeEventListener("pointermove", onMove);
       _overlayEl.removeEventListener("pointerup", onUp);
       _overlayEl.removeEventListener("pointercancel", onUp);
+      previewEl.remove();
       svg.remove();
       for (const h of handleEls) h.remove();
     },

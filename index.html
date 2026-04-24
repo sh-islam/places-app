@@ -26,6 +26,14 @@
         <button id="zoom-out-btn"   class="zoom-btn" title="Zoom out">−</button>
         <button id="zoom-reset-btn" class="zoom-btn zoom-reset" title="Reset zoom">⟲</button>
       </div>
+      <!-- Preview zoom for advanced-edit mode. Same visual as scene
+           zoom; shown only while body.adv-editing is set. Zooms the
+           image within the canvas, not the scene viewport. -->
+      <div class="zoom-controls adv-zoom-controls" aria-label="Preview zoom">
+        <button id="adv-zoom-in-btn"    class="zoom-btn" title="Zoom in (preview)">+</button>
+        <button id="adv-zoom-out-btn"   class="zoom-btn" title="Zoom out (preview)">−</button>
+        <button id="adv-zoom-reset-btn" class="zoom-btn zoom-reset" title="Fit to canvas">⟲</button>
+      </div>
       <!-- Background picker (lives in scene corner so it stays out of the panel) -->
       <button id="bg-picker-btn" class="bg-picker-btn" title="Change background">🖼</button>
       <div id="bg-popover" class="bg-popover" aria-hidden="true">
