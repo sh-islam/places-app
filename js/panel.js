@@ -4,6 +4,7 @@ import { state } from "./state.js";
 import { findObject } from "./objects.js";
 import { toLabel, itemDisplayName } from "./labels.js";
 import { assetUrl } from "./config.js";
+import { refreshRecategorize } from "./recategorize.js";
 
 
 let currentMode = "empty";
@@ -51,4 +52,5 @@ function _refreshSelectedView() {
     visBtn.textContent = "👁";
     visBtn.classList.toggle("eye-closed", !!obj.hidden);
   }
+  refreshRecategorize();
 }

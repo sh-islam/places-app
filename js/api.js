@@ -83,6 +83,12 @@ export const api = {
   deleteCatalogItem: (itemUrl) => postJson("/api/catalog/delete", { url: itemUrl }),
   renameCatalogItem: (itemUrl, newName) =>
     postJson("/api/catalog/rename", { url: itemUrl, new_name: newName }),
+  moveCatalogItem: (itemUrl, newCategory, newSubcategory) =>
+    postJson("/api/catalog/move", {
+      url: itemUrl,
+      new_category: newCategory,
+      new_subcategory: newSubcategory,
+    }),
 
   uploadCatalogItem: async ({ image, category, subcategory, name, overwrite }) => {
     const fd = new FormData();

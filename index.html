@@ -72,6 +72,15 @@
           </div>
           <img id="sel-thumb" class="sel-thumb" alt="" />
         </div>
+        <!-- Admin: move this catalog item to a different category/subcategory.
+             The backend physically moves the file and retargets every saved
+             room's URL, so all users see it in its new spot. -->
+        <div class="sel-recategorize admin-only">
+          <label class="muted small">Move to</label>
+          <select id="sel-cat" class="sel-select"></select>
+          <select id="sel-sub" class="sel-select"></select>
+          <button id="sel-move-btn" class="btn-pill" disabled>Go</button>
+        </div>
         <div class="action-row sel-actions">
           <button id="edit-btn" class="btn-pill primary">EDIT</button>
           <button id="visibility-btn" data-action="toggle-visibility" class="btn-icon" title="Toggle visibility">👁</button>

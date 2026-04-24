@@ -12,6 +12,7 @@ import { initRooms, attachSceneSwipe } from "./rooms.js";
 import { initInventory } from "./inventory.js";
 import { initSettings, applyStoredTheme } from "./settings.js";
 import { setMode, refreshForSelection } from "./panel.js";
+import { initRecategorize } from "./recategorize.js";
 
 
 async function boot() {
@@ -129,6 +130,7 @@ async function boot() {
   });
 
   initControls();
+  initRecategorize();
 
   // Bottom nav: home is just "close any drawer", logout submits the hidden form.
   document.querySelector(".bottom-nav")

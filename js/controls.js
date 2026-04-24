@@ -53,6 +53,7 @@ export function initControls() {
   _initPalette();
   _initZoomButtons();
   _initRenameButton();
+  _initRecategorize();
   setInterval(_updateSaveLabel, 400);
 }
 

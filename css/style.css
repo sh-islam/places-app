@@ -847,6 +847,33 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   border-radius: 8px;
 }
 
+/* Admin re-categorize row — live between sel-row and sel-actions.
+   Two compact dropdowns + a Go button. Hidden for non-admins via
+   .admin-only. */
+.sel-recategorize {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sel-recategorize label {
+  margin-right: 2px;
+}
+.sel-select {
+  flex: 1 1 90px;
+  min-width: 0;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 6px;
+  font-size: 12px;
+}
+#sel-move-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
 /* ---------- Edit mode ---------- */
 
 /* Two equal columns so the controller on the left and the action stack on
