@@ -7,7 +7,10 @@ import { state } from "./state.js";
 import { api } from "./api.js";
 import { findObject } from "./objects.js";
 import { render } from "./canvas.js";
-import { refreshForSelection } from "./panel.js";
+// panel.js is NOT imported statically — it imports refreshRecategorize from
+// here, so a static import back creates a cycle that some browsers trip on
+// during module evaluation (empty exports seen at top-level, boot fails).
+// We resolve the function lazily inside _doMove() instead.
 
 
 let _selCat = null;
@@ -100,6 +103,7 @@ async function _doMove() {
     const { rebuildCatalog } = await import("./catalog.js");
     rebuildCatalog();
 
+    const { refreshForSelection } = await import("./panel.js");
     refreshForSelection();
     render();
   } catch (err) {
