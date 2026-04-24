@@ -171,6 +171,10 @@ export function syncGifLayer(rect) {
     img.style.height = h + "px";
     img.style.transform = _buildMatrix(obj, w, h, rect);
     img.style.filter = _composeFilter(obj, obj.id === state.selectedId);
+    // Stamp obj.layer as z-index so GIF-vs-GIF ordering within the
+    // overlay honours bringForward / sendBackward. (GIFs still paint
+    // above all canvas items — see module-level Limitations.)
+    img.style.zIndex = String(obj.layer);
 
     seen.add(obj.id);
   }
