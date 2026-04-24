@@ -1321,16 +1321,6 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .action-stack .round-btn,
   .action-stack .icon-btn { width: 46px; height: 46px; }
   .action-stack .round-btn { font-size: 16px; }
-  /* Users asked for +/− 1.5× and rotate 2× on mobile so the
-     primary edit actions are easier to tap. Keep the non-primary
-     icon-btns at the base 46px. */
-  .action-stack .round-btn.scale-up,
-  .action-stack .round-btn.scale-down {
-    width: 69px; height: 69px; font-size: 22px;
-  }
-  .action-stack .round-btn.rotate-btn {
-    width: 92px; height: 92px; font-size: 34px;
-  }
   .mode        { gap: 4px; }
   .rotate-row  { gap: 4px; }
   .subtool-row .btn-pill { font-size: 11px; padding: 4px 6px; }
@@ -1352,25 +1342,10 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .action-stack .round-btn,
   .action-stack .icon-btn { width: 42px; height: 42px; }
   .action-stack .round-btn { font-size: 15px; }
-  .action-stack .round-btn.scale-up,
-  .action-stack .round-btn.scale-down {
-    width: 63px; height: 63px; font-size: 20px;
-  }
-  .action-stack .round-btn.rotate-btn {
-    width: 84px; height: 84px; font-size: 30px;
-  }
   .panel-header { padding: 2px 0 4px; margin-bottom: 6px; }
   .edit-top { padding: 0; }
 }
 .action-stack .round-btn { font-size: 20px; }
-/* ⟲/⟳ render thinner than +/− at the same font-size on most
-   platforms because they're symbol-font glyphs rather than regular
-   typeface characters. -webkit-text-stroke fattens the outline so
-   the rotate glyphs visually match the chunkier plus/minus. */
-.round-btn.rotate-btn {
-  -webkit-text-stroke: 1.5px currentColor;
-  text-stroke: 1.5px currentColor;
-}
 .round-btn {
   width: 42px;
   height: 42px;
