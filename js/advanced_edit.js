@@ -28,9 +28,10 @@ let _dirty = false;
 let _tool = null;            // currently active tool name
 let _toolHandle = null;      // {render?, refresh?, destroy}
 let _renderFit = null;       // {scale, offsetX, offsetY, renderedW, renderedH}
-// Editor-only scene chrome: solid bg fill vs checkerboard transparency.
-// Enabled by default at hue 0 → near-black (hsl(0, 30%, 6%)).
-let _bgEnabled = true;
+// Editor-only scene chrome: checkbox unchecked (default) = solid black
+// fill; checked = vivid saturated color from the hue slider.
+// Default off so every session opens on the requested black background.
+let _bgEnabled = false;
 let _bgHue = 0;
 // Preview zoom multiplier on top of the fit-to-canvas scale. 1 = fit.
 let _userZoom = 1;
@@ -460,10 +461,10 @@ function _rerender() {
   // it's stable across re-renders. We reset the transform to draw in CSS
   // pixels.
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  // Scene background: either a solid hue-tinted fill (default) or the
-  // dark fallback + checkerboard that reveals image transparency. At
-  // hue=0 the HSL fill reads as near-black; sliding reveals a tint.
-  ctx.fillStyle = _bgEnabled ? `hsl(${_bgHue}, 30%, 6%)` : "#0a0a0d";
+  // Scene background: off (default) = solid black; on = bright, fully
+  // saturated hue from the slider. User wanted the color options to be
+  // vivid and visible, not muted dark tints.
+  ctx.fillStyle = _bgEnabled ? `hsl(${_bgHue}, 85%, 50%)` : "#000";
   ctx.fillRect(0, 0, rect.width, rect.height);
 
   const availW = rect.width - EDGE_MARGIN * 2;
@@ -477,9 +478,6 @@ function _rerender() {
   const offsetY = (rect.height - renderedH) / 2;
   _renderFit = { scale, offsetX, offsetY, renderedW, renderedH };
 
-  if (!_bgEnabled) {
-    _drawCheckerboard(ctx, offsetX, offsetY, renderedW, renderedH);
-  }
   // Perspective tool's DOM preview (CSS matrix3d on a canvas element)
   // shows the live warp — skip the scene-canvas drawImage so the two
   // don't stack. Every other tool draws normally.
@@ -916,12 +914,9 @@ function _makeShearTool() {
     const rect = _sceneCanvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = _bgEnabled ? `hsl(${_bgHue}, 30%, 6%)` : "#0a0a0d";
+    ctx.fillStyle = _bgEnabled ? `hsl(${_bgHue}, 85%, 50%)` : "#000";
     ctx.fillRect(0, 0, rect.width, rect.height);
     const fit = _renderFit;
-    if (!_bgEnabled) {
-      _drawCheckerboard(ctx, fit.offsetX, fit.offsetY, fit.renderedW, fit.renderedH);
-    }
     ctx.save();
     ctx.beginPath();
     ctx.rect(fit.offsetX, fit.offsetY, fit.renderedW, fit.renderedH);
