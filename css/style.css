@@ -276,13 +276,32 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 
 /* ---------- Scene (canvas) ---------- */
 
+/* THE CANVAS IS THE ANCHOR.
+   Fixed 1:1 aspect on every device — desktop, tablet, mobile all see
+   a square scene. Width caps at the smaller of the phone-frame width
+   and 50dvh so the bottom panel always has predictable room. The
+   background cover-fits this square (see _drawBackgroundCoverFit in
+   canvas.js); since the world is also 1:1, items and bg share the
+   same reference frame, so an item at world (500, 500) lands on the
+   same bg pixel regardless of device. */
 .scene {
-  flex: 0 0 45%;
+  flex: 0 0 auto;
+  width: min(100%, 50dvh);
+  aspect-ratio: 1 / 1;
+  align-self: center;
   background:
     linear-gradient(180deg, #6ea16e 0%, #4a7f4a 100%);
   border-bottom: 4px solid var(--border);
   position: relative;
   overflow: hidden;
+}
+
+/* Short viewports: trim the square so the bottom panel can grow. */
+@media (max-height: 760px) {
+  .scene { width: min(100%, 44dvh); }
+}
+@media (max-height: 640px) {
+  .scene { width: min(100%, 40dvh); }
 }
 .scene-inner {
   position: absolute;
@@ -1042,6 +1061,53 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 .action-stack .icon-btn {
   width: 54px;
   height: 54px;
+}
+
+/* --- Short-viewport shrink for edit-mode controls ------------------
+   Below 760px the panel can't fit the full-size joystick + arrows +
+   action-stack + all three action/sub-tool rows; shrink everything
+   proportionally so it fits without scrollbars. Second tier at
+   <=640px handles iPhone SE and similarly cramped devices. */
+@media (max-height: 760px) {
+  .controller {
+    grid-template-columns: 40px 108px 40px;
+    grid-template-rows:    40px 108px 40px;
+    gap: 3px;
+  }
+  .joystick      { width: 108px; height: 108px; }
+  .joystick-knob { width: 48px;  height: 48px; }
+  .dpad-btn      { width: 40px;  height: 40px; font-size: 13px; }
+  .action-stack {
+    grid-template-columns: 46px 46px;
+    grid-auto-rows: 46px;
+    gap: 4px 10px;
+  }
+  .action-stack .round-btn,
+  .action-stack .icon-btn { width: 46px; height: 46px; }
+  .action-stack .round-btn { font-size: 16px; }
+  .mode        { gap: 4px; }
+  .rotate-row  { gap: 4px; }
+  .subtool-row .btn-pill { font-size: 11px; padding: 4px 6px; }
+}
+@media (max-height: 640px) {
+  .controller {
+    grid-template-columns: 36px 92px 36px;
+    grid-template-rows:    36px 92px 36px;
+    gap: 2px;
+  }
+  .joystick      { width: 92px; height: 92px; }
+  .joystick-knob { width: 40px; height: 40px; }
+  .dpad-btn      { width: 36px; height: 36px; font-size: 12px; }
+  .action-stack {
+    grid-template-columns: 42px 42px;
+    grid-auto-rows: 42px;
+    gap: 3px 8px;
+  }
+  .action-stack .round-btn,
+  .action-stack .icon-btn { width: 42px; height: 42px; }
+  .action-stack .round-btn { font-size: 15px; }
+  .panel-header { padding: 2px 0 4px; margin-bottom: 6px; }
+  .edit-top { padding: 0; }
 }
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {
