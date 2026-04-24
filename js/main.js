@@ -173,6 +173,30 @@ async function boot() {
     });
   });
 
+  // Lock / unlock all items — when unlocked, any item can be dragged
+  // directly on the canvas without entering edit mode. Session-scope
+  // only (resets to "locked" on reload) so the default safe behaviour
+  // is always the norm on fresh sessions.
+  const lockBtn = document.getElementById("lock-toggle-btn");
+  const lockIcon  = lockBtn.querySelector(".home-tool-icon");
+  const lockLabel = lockBtn.querySelector(".home-tool-label");
+  function syncLockBtn() {
+    if (state.itemsUnlocked) {
+      lockIcon.textContent = "🔓";
+      lockLabel.textContent = "Lock all items";
+      lockBtn.classList.add("active");
+    } else {
+      lockIcon.textContent = "🔒";
+      lockLabel.textContent = "Unlock all items";
+      lockBtn.classList.remove("active");
+    }
+  }
+  lockBtn.addEventListener("click", () => {
+    state.itemsUnlocked = !state.itemsUnlocked;
+    syncLockBtn();
+  });
+  syncLockBtn();
+
   setMode("empty");
   render();
 

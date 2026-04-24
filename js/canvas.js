@@ -328,6 +328,29 @@ function _onPointerDown(evt) {
   const zoomed = state.view.zoom > 1;
   const editing = getMode() === "edit";
 
+  // "Unlock all items" (home menu toggle) lets the user drag any item
+  // directly without entering edit mode. A press that lands on an item
+  // starts a drag + selects it; a press that misses falls through to
+  // the normal pan/swipe flow so room-swipe and canvas-pan still work.
+  if (state.itemsUnlocked && !editing) {
+    const hit = _hitTest(world.x, world.y);
+    if (hit) {
+      state.selectedId = hit.id;
+      refreshForSelection();
+      drag = {
+        id: hit.id,
+        offsetX: world.x - hit.position.x,
+        offsetY: world.y - hit.position.y,
+        startX: world.x,
+        startY: world.y,
+        moved: false,
+      };
+      canvas.setPointerCapture(evt.pointerId);
+      render();
+      return;
+    }
+  }
+
   // Edit mode: the item being edited always drags, zoomed or not. Dragging
   // anywhere else pans when zoomed (so the user can reposition their view
   // mid-edit) or does nothing when not zoomed.

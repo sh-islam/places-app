@@ -21,6 +21,10 @@ export const state = {
   // zoom can only go up (>=1); when zoomed, the canvas can be panned and
   // object selection is disabled so dragging only pans.
   view: { zoom: 1, panX: 0, panY: 0 },
+  // When true, any item on the canvas can be dragged directly without
+  // entering edit mode. Toggled via the lock button in the home tools.
+  // Default false so existing behaviour (edit-mode-required) is the norm.
+  itemsUnlocked: false,
 };
 
 // Point `state.room` at the currently-active entry. Call whenever `rooms` or
