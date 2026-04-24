@@ -947,22 +947,30 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 
 /* Left-side controller cluster: joystick at centre, 4 arrow buttons
-   at N/S/E/W. Laid out as a 3×3 grid so everything aligns cleanly and
-   the cluster collapses to just the joystick's footprint (120px) plus
-   the arrow buttons on each side. */
+   at N/S/E/W. grid-template-areas used (rather than grid-column/row
+   per element) so the layout stays explicit and doesn't depend on
+   every child declaring its own placement — one typo in a child's
+   rule otherwise made the whole cluster collapse into an auto-flow
+   single column. width: max-content pins the cluster to its intrinsic
+   size so a narrow parent cell can't force it to stack either. */
 .controller {
   display: grid;
-  grid-template-columns: 36px 120px 36px;
-  grid-template-rows:    36px 120px 36px;
-  gap: 6px;
+  grid-template-columns: 40px 128px 40px;
+  grid-template-rows:    40px 128px 40px;
+  grid-template-areas:
+    ". up ."
+    "lt jk rt"
+    ". dn .";
+  gap: 4px;
   place-items: center;
+  width: max-content;
 }
 
-/* Simplistic arrow buttons — flat, minimal, no gradient bg. The
-   joystick is the visual star; these are just the nudge controls. */
+/* Simplistic arrow buttons — flat, minimal. The joystick is the
+   visual star; these are just the nudge controls. */
 .dpad-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--btn-bg);
@@ -977,17 +985,16 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 .dpad-btn:hover  { background: var(--btn-hover); }
 .dpad-btn:active { transform: translateY(1px); }
-.dpad-up    { grid-column: 2; grid-row: 1; }
-.dpad-left  { grid-column: 1; grid-row: 2; }
-.dpad-right { grid-column: 3; grid-row: 2; }
-.dpad-down  { grid-column: 2; grid-row: 3; }
+.dpad-up    { grid-area: up; }
+.dpad-left  { grid-area: lt; }
+.dpad-right { grid-area: rt; }
+.dpad-down  { grid-area: dn; }
 
 /* Joystick sits at the centre cell of the controller grid. */
 .joystick {
-  grid-column: 2;
-  grid-row: 2;
-  width: 120px;
-  height: 120px;
+  grid-area: jk;
+  width: 128px;
+  height: 128px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 40%, #2f333b 0%, var(--btn-bg) 75%, var(--bg-base) 100%);
@@ -1002,8 +1009,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 .joystick.active { cursor: grabbing; }
 .joystick-knob {
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 35% 30%, #8a9098 0%, #545862 60%, #2f333b 100%);
