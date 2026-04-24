@@ -252,6 +252,19 @@ async function _playGoodbyeSplashAndLogout() {
   }
   const slogan = "Goodbye. This place will always be yours.";
   splash.hidden = false;
+
+  // Start fetching login.html + its resources the moment the splash
+  // opens so by the time we actually navigate, the new page paints
+  // instantly. Without this hint the browser kept the old game view
+  // painted for a split second after navigation while it fetched the
+  // next page — that's the "I can still see my canvas" flash.
+  for (const href of ["login.html", "js/login.js", "icon.png"]) {
+    const link = document.createElement("link");
+    link.rel = "prefetch";
+    link.href = href;
+    document.head.appendChild(link);
+  }
+
   // Typewriter.
   for (let i = 1; i <= slogan.length; i++) {
     textEl.textContent = slogan.slice(0, i);
@@ -260,7 +273,7 @@ async function _playGoodbyeSplashAndLogout() {
   await new Promise((r) => setTimeout(r, 900));
   // Fire the logout alongside the splash (non-blocking so the user
   // doesn't wait on the network) and navigate immediately. No fade
-  // out here — a fade would briefly reveal the main app behind the
+  // out — a fade would briefly reveal the main app behind the
   // splash, which the user shouldn't see again after saying goodbye.
   api.logout().catch(() => {});
   authToken.clear();

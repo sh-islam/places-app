@@ -20,12 +20,16 @@
 </head>
 <body class="login-body">
   <!-- Splash played AFTER a successful sign-in, before we navigate
-       into the app. Hidden by default so direct page loads just show
-       the login card. Shown + animated by login.js on form success. -->
+       into the app. Wrapped in .splash-card which mirrors the login
+       card's width + padding so the icon lands in the same on-screen
+       position on every viewport — makes the splash → login-card
+       transition seamless. -->
   <div id="splash-overlay" class="splash" hidden>
-    <img src="icon.png" alt="" class="splash-icon" />
-    <h1 class="splash-title">Places</h1>
-    <p class="splash-slogan"><span id="splash-text"></span><span class="splash-caret">|</span></p>
+    <div class="splash-card">
+      <img src="icon.png" alt="" class="splash-icon" />
+      <h1 class="splash-title">Places</h1>
+      <p class="splash-slogan"><span id="splash-text"></span><span class="splash-caret">|</span></p>
+    </div>
   </div>
   <main class="login-card">
     <img src="icon.png" alt="" class="login-icon" />
@@ -34,7 +38,7 @@
     <form id="login-form" class="login-form" novalidate>
       <label>
         Username
-        <input name="username" autocomplete="username" autofocus required />
+        <input name="username" autocomplete="username" required />
       </label>
       <label>
         Password

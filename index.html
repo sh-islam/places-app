@@ -368,13 +368,15 @@
 
   </div>
 
-  <!-- Sign-out splash overlay. Same structure as login.html's
-       welcome splash; shown by main.js when the power button is
-       pressed, before we actually log out + navigate away. -->
+  <!-- Sign-out splash overlay. Same structure + .splash-card wrapper
+       as login.html's welcome splash so the icon lines up with the
+       login-card's icon position on the other side of the nav. -->
   <div id="splash-overlay" class="splash" hidden>
-    <img src="icon.png" alt="" class="splash-icon" />
-    <h1 class="splash-title">Places</h1>
-    <p class="splash-slogan"><span id="splash-text"></span><span class="splash-caret">|</span></p>
+    <div class="splash-card">
+      <img src="icon.png" alt="" class="splash-icon" />
+      <h1 class="splash-title">Places</h1>
+      <p class="splash-slogan"><span id="splash-text"></span><span class="splash-caret">|</span></p>
+    </div>
   </div>
   <script type="module" src="js/main.js"></script>
 </body>

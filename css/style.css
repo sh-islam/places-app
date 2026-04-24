@@ -176,41 +176,44 @@ input, textarea, [contenteditable] {
   overflow: auto;
 }
 
-/* ----- Splash intro (played after sign-in / before sign-out) ----- */
+/* ----- Splash intro (played after sign-in / before sign-out) -----
+   The whole splash mirrors the login-card layout so the icon lands
+   in the SAME viewport spot on both pages, making the splash → login
+   and logout → splash transitions feel continuous. */
 .splash {
   position: fixed;
   inset: 0;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  /* justify-content: flex-start + padding-top pins the icon at a
-     fixed vertical offset from the top. Title + slogan flow below;
-     when the slogan wraps to a second line, the icon stays put
-     instead of getting pushed up by centred-flex re-layout. */
-  justify-content: flex-start;
-  padding-top: 22vh;
-  gap: 20px;
+  justify-content: center;
   background: linear-gradient(135deg, #1a1d22, #2a2f38);
   z-index: 100;
-  opacity: 1;
-  transition: opacity 500ms ease;
 }
 .splash[hidden] { display: none; }
-.splash.closing { opacity: 0; }
-/* Splash icon — same intrinsic size as the login card's icon (240px)
-   so the transition from splash → login (or from index → splash)
-   doesn't jump sizes. Gently scales down while the splash fades so
-   it still reads as "landing into place". */
+/* .splash-card mirrors .login-card's width + padding. Icon at top,
+   title + slogan below. No background / border — it's invisible; its
+   only job is layout so the icon's on-screen position matches. */
+.splash-card {
+  width: min(360px, calc(100vw - 32px));
+  padding: 28px;
+  box-sizing: border-box;
+  text-align: center;
+}
+/* Slogan reserves fixed vertical space so its wrap (e.g. 1 line vs 2)
+   doesn't change splash-card height and therefore doesn't shift the
+   icon. */
+.splash-slogan { min-height: 3.4em; }
+/* Splash icon — same intrinsic size as the login card's icon (240px
+   desktop, 180px mobile) so no size jump at transition. */
 .splash-icon {
+  display: block;
   width: 240px;
   height: 240px;
-  max-width: 70vw;
-  max-height: 70vw;
+  margin: 0 auto 12px;
   object-fit: contain;
-  transition: transform 500ms ease;
 }
-.splash.closing .splash-icon {
-  transform: scale(0.85);
+@media (max-width: 420px) {
+  .splash-icon { width: 180px; height: 180px; }
 }
 /* Force the pixel font on the splash regardless of which page it's
    rendered on (index.html's default body font is sans; login.html's
