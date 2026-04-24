@@ -108,17 +108,13 @@ function _buildMatrix(obj, w, h, rect) {
 function _composeFilter(obj, selected) {
   const base = filterStringFor(obj);
   const baseStr = base === "none" ? "" : base;
-  // Match canvas shadowBlur=54 + shadowColor rgba(80,150,255,0.93):
-  // canvas shadowBlur N is approximately a Gaussian with stddev N/2,
-  // which at alpha 0.93 produces a soft dissipating halo ~27px wide
-  // around the silhouette. CSS drop-shadow(0 0 Bpx) is also a
-  // Gaussian, but at the SAME stddev so we halve the radius: 27px
-  // CSS drop-shadow visually spreads like canvas shadowBlur=54. A
-  // single pass gives the dissipating falloff (density near edge,
-  // fading outward) instead of the uniform "outline" feel of a
-  // tighter pass or the hard outline of too-wide a pass.
+  // Match canvas shadowBlur visually. Canvas side now normalises
+  // shadowBlur by dpr so the halo is always 54 CSS px across; CSS
+  // drop-shadow is already in CSS px, so 54px here matches that
+  // width exactly regardless of device. Same colour + alpha as the
+  // canvas shadowColor gives the same dissipating falloff density.
   const glow = selected
-    ? "drop-shadow(0 0 27px rgba(80, 150, 255, 0.93))"
+    ? "drop-shadow(0 0 54px rgba(80, 150, 255, 0.93))"
     : "";
   const out = [baseStr, glow].filter(Boolean).join(" ");
   return out || "none";

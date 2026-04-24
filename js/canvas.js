@@ -539,10 +539,17 @@ function _drawObject(obj) {
   }
 
   // Selected item: soft accent-tinted shadow that hugs the image's
-  // alpha silhouette (no outline, transparent PNG regions stay clear).
+  // alpha silhouette. Canvas shadowBlur ignores the current transform
+  // and is always in backing pixels, so on a dpr=1 display a value of
+  // 54 shows as 54 CSS px while on a dpr=3 phone it shows as only 18
+  // CSS px — and the GIF overlay's CSS drop-shadow (also in CSS px)
+  // then doesn't visually match. Multiply by dpr so the shadow is a
+  // consistent 54 CSS px wide at every device, matching the 54px
+  // drop-shadow used for GIFs.
   if (obj.id === state.selectedId) {
+    const dpr = window.devicePixelRatio || 1;
     ctx.shadowColor = "rgba(80, 150, 255, 0.93)";
-    ctx.shadowBlur = 54;
+    ctx.shadowBlur = 54 * dpr;
   }
   ctx.drawImage(source, -w / 2, -h / 2, w, h);
   ctx.restore();
