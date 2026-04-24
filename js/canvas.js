@@ -387,13 +387,18 @@ function _drawBackgroundCoverFit(rect) {
   }
   // Cover-fit the bg into the scene rect (CSS px). Bg always fills edge
   // to edge; some of the bg may be cropped on aspects different from
-  // the bg's natural aspect, but there are never empty bands.
+  // the bg's natural aspect, but there are never empty bands. A small
+  // 2px bleed overdraws the canvas slightly so sub-pixel rounding on
+  // high-DPR mobile screens can't leave a 1-px green strip at the edge.
+  const BLEED = 2;
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
-  const scale = Math.max(rect.width / iw, rect.height / ih);
+  const targetW = rect.width  + BLEED * 2;
+  const targetH = rect.height + BLEED * 2;
+  const scale = Math.max(targetW / iw, targetH / ih);
   const dw = iw * scale;
   const dh = ih * scale;
-  const dx = (rect.width - dw) / 2;
+  const dx = (rect.width  - dw) / 2;
   const dy = (rect.height - dh) / 2;
   ctx.drawImage(img, dx, dy, dw, dh);
 }

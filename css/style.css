@@ -304,6 +304,12 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 #room-canvas {
   display: block;
+  /* Pin exactly to scene-inner bounds — flex-item sizing (width/height
+     100%) occasionally under-sized on high-DPR mobile browsers, which
+     let the green .scene gradient peek through at the edges next to
+     the cover-fit background. Absolute+inset removes the ambiguity. */
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   background:
@@ -884,7 +890,17 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  /* On very short mobile screens (advanced-edit panels, edit mode with
+     the full control stack, etc.) content can exceed the available
+     height. We allow touch-scrolling the mode content as a last
+     resort, but hide the scrollbar so the look stays clean. All main
+     actions are supposed to fit without scrolling via the shrink
+     media queries further down; this is the safety net. */
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.mode::-webkit-scrollbar { display: none; }
 .mode.active { display: flex; }
 
 /* Selected mode */
@@ -1100,6 +1116,35 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .action-stack .round-btn { font-size: 15px; }
   .panel-header { padding: 2px 0 4px; margin-bottom: 6px; }
   .edit-top { padding: 0; }
+}
+
+/* Advanced-edit mode also packs a lot into the bottom panel
+   (tool bar, bg options, per-tool controls, Save / Save-as-copy, copy
+   form, status). On short screens shrink padding, gaps, and font
+   sizes so DONE/Save/tool sliders stay visible above the nav bar. */
+@media (max-height: 760px) {
+  .adv-header    { margin-bottom: 3px; }
+  .adv-title     { font-size: 12px; }
+  .adv-tools     { gap: 4px; margin-bottom: 3px; }
+  .adv-tool-btn  { padding: 6px 3px; font-size: 11px; }
+  .adv-scene-opts { padding: 2px 0; }
+  .adv-tool-controls { gap: 4px; padding: 3px 0; }
+  .adv-slider-row { font-size: 11px; gap: 6px; }
+  .adv-actions  { margin-top: 0; }
+  #adv-save-btn, #adv-save-copy-btn { padding: 4px 12px; font-size: 12px; }
+  .adv-copy-form { padding: 6px; gap: 5px; }
+  .adv-status { margin-top: 2px; }
+}
+@media (max-height: 640px) {
+  .adv-tool-btn  { padding: 5px 2px; font-size: 10px; }
+  .adv-slider-row label  { min-width: 48px; }
+  .adv-slider-row output { min-width: 36px; }
+}
+
+/* Tighten the bottom-nav on short screens too so the last row of
+   the active mode isn't hidden behind it. */
+@media (max-height: 700px) {
+  .bottom-nav { padding: 6px 16px max(6px, env(safe-area-inset-bottom)); }
 }
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {
