@@ -12,6 +12,7 @@ import {
   moveObject,
   objectsByLayerAsc,
   revertObject,
+  snapshotObject,
 } from "./objects.js";
 import { getMode, refreshForSelection, setMode } from "./panel.js";
 import { nextRoom, prevRoom } from "./rooms.js";
@@ -28,6 +29,15 @@ let pan = null;           // { startClientX, startClientY, startPanX, startPanY 
 let swipe = null;         // { startX, startY } for room-switching swipe (touch)
 let subDrag = null;       // { handleId, obj, startShear, startWarp, startWorld }
 const DRAG_THRESHOLD = 4; // px before we count it as a drag
+// Double-tap / long-press → enter edit mode. These are the windows.
+const DOUBLE_TAP_MS = 350;
+const LONG_PRESS_MS = 500;
+// Long-press state: timer handle + "fired" flag so the corresponding
+// pointerup doesn't also run its normal tap-select logic.
+let _longPressTimer = null;
+let _longPressFired = false;
+// Double-tap state: the id + time of the last successful tap-select.
+let _lastTap = null;
 // New items are normalized so they render with the same visual *area* —
 // target × target square pixels, regardless of aspect ratio. Fraction is
 // of the WORLD's smaller dimension so the target is device-independent.
@@ -767,11 +777,72 @@ function _screenCoords(evt) {
   return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
 }
 
+function _enterEditMode(id) {
+  const obj = findObject(id);
+  if (!obj) return;
+  state.selectedId = id;
+  snapshotObject(id);
+  setMode("edit");
+  refreshForSelection();
+  render();
+}
+
+
+function _cancelLongPress() {
+  if (_longPressTimer) {
+    clearTimeout(_longPressTimer);
+    _longPressTimer = null;
+  }
+}
+
+
+// Resolve a tap-up to a selection, with double-tap-to-edit as a
+// short-circuit: tapping the same object twice within DOUBLE_TAP_MS
+// drops into edit mode on that item. Otherwise just sets the
+// selection (or clears it on an empty-space tap).
+function _handleTapSelect(evt) {
+  const screen = _screenCoords(evt);
+  const world = _screenToWorld(screen.x, screen.y);
+  const hit = _hitTest(world.x, world.y);
+  const now = Date.now();
+  if (hit && _lastTap && _lastTap.id === hit.id && now - _lastTap.t <= DOUBLE_TAP_MS) {
+    _lastTap = null;
+    _enterEditMode(hit.id);
+    return;
+  }
+  state.selectedId = hit ? hit.id : null;
+  _lastTap = hit ? { id: hit.id, t: now } : null;
+  refreshForSelection();
+  render();
+}
+
+
 function _onPointerDown(evt) {
   const screen = _screenCoords(evt);
   const world = _screenToWorld(screen.x, screen.y);
   const zoomed = state.view.zoom > 1;
   const editing = getMode() === "edit";
+
+  // Long-press → enter edit mode. Only armed when we're not already
+  // editing (re-entering from inside edit mode doesn't make sense)
+  // and when the press lands on an actual object. Timer gets
+  // cancelled on any meaningful move (see _onPointerMove) or on
+  // release (see _onPointerUp). The "_longPressFired" flag tells
+  // pointer-up to swallow the release so it doesn't also run the
+  // normal tap-select logic right after we just opened edit mode.
+  _longPressFired = false;
+  _cancelLongPress();
+  if (!editing) {
+    const hit = _hitTest(world.x, world.y);
+    if (hit) {
+      const targetId = hit.id;
+      _longPressTimer = setTimeout(() => {
+        _longPressTimer = null;
+        _longPressFired = true;
+        _enterEditMode(targetId);
+      }, LONG_PRESS_MS);
+    }
+  }
 
   // Edit-mode sub-tools (shear / warp): if the pointer lands on a
   // handle of the selected item, start a handle drag and short-circuit
@@ -881,6 +952,7 @@ function _onPointerMove(evt) {
     // Ignore tiny finger jitter so a fat-fingered tap doesn't nudge the pan.
     if (!pan.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
     pan.moved = true;
+    _cancelLongPress();
     // Pan lives in SCREEN CSS-px under the new outer-view transform;
     // 1 px of finger drag = 1 px of composite shift.
     state.view.panX = pan.startPanX + dx;
@@ -895,12 +967,28 @@ function _onPointerMove(evt) {
   if (!drag.moved) {
     if (Math.hypot(world.x - drag.startX, world.y - drag.startY) < DRAG_THRESHOLD) return;
     drag.moved = true;
+    _cancelLongPress();
   }
   moveObject(drag.id, world.x - drag.offsetX, world.y - drag.offsetY);
   render();
 }
 
 function _onPointerUp(evt) {
+  // Long-press may still be pending if the user released before the
+  // timer fired; cancel it so a short tap doesn't accidentally enter
+  // edit mode after release.
+  _cancelLongPress();
+  // If the long-press timer already fired we've already entered edit
+  // mode on a held item — swallow the corresponding release so the
+  // tap-select path below doesn't immediately re-run and re-select.
+  if (_longPressFired) {
+    _longPressFired = false;
+    if (canvas.hasPointerCapture(evt.pointerId)) {
+      canvas.releasePointerCapture(evt.pointerId);
+    }
+    drag = null; pan = null; swipe = null;
+    return;
+  }
   if (subDrag) {
     if (canvas.hasPointerCapture(evt.pointerId)) {
       canvas.releasePointerCapture(evt.pointerId);
@@ -943,12 +1031,7 @@ function _onPointerUp(evt) {
   // inspect items at any zoom. Skipped while editing so we don't swap the
   // active edit-target by accident.
   if (pan && !pan.moved && getMode() !== "edit") {
-    const screen = _screenCoords(evt);
-    const world = _screenToWorld(screen.x, screen.y);
-    const hit = _hitTest(world.x, world.y);
-    state.selectedId = hit ? hit.id : null;
-    refreshForSelection();
-    render();
+    _handleTapSelect(evt);
   }
   if ((drag || pan) && canvas.hasPointerCapture(evt.pointerId)) {
     canvas.releasePointerCapture(evt.pointerId);
@@ -961,13 +1044,8 @@ function _onPointerUp(evt) {
       // Horizontal swipe → switch rooms
       if (dx < 0) nextRoom(); else prevRoom();
     } else {
-      // Tap → select object
-      const screen = _screenCoords(evt);
-      const world = _screenToWorld(screen.x, screen.y);
-      const hit = _hitTest(world.x, world.y);
-      state.selectedId = hit ? hit.id : null;
-      refreshForSelection();
-      render();
+      // Tap → select object (double-tap same object → edit mode)
+      _handleTapSelect(evt);
     }
     swipe = null;
   }
