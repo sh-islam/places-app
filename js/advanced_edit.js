@@ -32,7 +32,11 @@ let _renderFit = null;       // {scale, offsetX, offsetY, renderedW, renderedH}
 // Editor-only scene chrome: checkbox unchecked (default) = solid black
 // fill; checked = vivid saturated color from the hue slider.
 // Default off so every session opens on the requested black background.
-let _bgEnabled = false;
+// Default: bg enabled with hue 0 → fills the scene canvas with black
+// so the default editor look is unchanged. Unchecking the checkbox
+// now clears the bg entirely (transparent) so the raw image with its
+// own alpha is visible — useful for reviewing erase / crop output.
+let _bgEnabled = true;
 let _bgHue = 0;
 // Preview zoom multiplier on top of the fit-to-canvas scale. 1 = fit.
 let _userZoom = 1;
@@ -466,8 +470,17 @@ function _rerender() {
   // Scene background: off (default) = solid black; on = bright, fully
   // saturated hue from the slider. User wanted the color options to be
   // vivid and visible, not muted dark tints.
-  ctx.fillStyle = _bgEnabled ? `hsl(${_bgHue}, 85%, 50%)` : "#000";
-  ctx.fillRect(0, 0, rect.width, rect.height);
+  if (_bgEnabled) {
+    // Slider at 0 falls back to black (the default look); non-zero
+    // hue pulls a saturated colour off the wheel.
+    ctx.fillStyle = _bgHue > 0 ? `hsl(${_bgHue}, 85%, 50%)` : "#000";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+  } else {
+    // Checkbox unchecked → no bg fill, so alpha-aware edits (erase,
+    // crop result, warp result) are visible against the canvas's
+    // own CSS background rather than a solid colour.
+    ctx.clearRect(0, 0, rect.width, rect.height);
+  }
 
   const availW = rect.width - EDGE_MARGIN * 2;
   const availH = rect.height - EDGE_MARGIN * 2;
