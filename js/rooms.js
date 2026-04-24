@@ -20,6 +20,25 @@ export async function initRooms({ dotsContainer, onRoomChange, onPanelReset }) {
   dotsEl.addEventListener("click", _onDotClick);
   await _loadRooms();
   _renderDots();
+
+  // When the user tabs back to the app (or returns from a minimized
+  // browser), re-pull rooms from the server so edits made on another
+  // device — hue/sat tweaks, object moves, shear/warp — actually show
+  // up. Skips if we have unsaved local changes so we don't stomp them.
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState !== "visible") return;
+    if (state.dirty) return;  // don't overwrite pending local edits
+    try {
+      const data = await api.listRooms();
+      state.rooms = data.rooms;
+      state.activeIndex = data.active_index;
+      syncActiveRoom();
+      normalizeLayers();
+      if (renderScene) renderScene();
+    } catch (e) {
+      console.warn("visibility-change refresh failed", e);
+    }
+  });
 }
 
 

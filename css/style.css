@@ -277,7 +277,17 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 /* ---------- Scene (canvas) ---------- */
 
 .scene {
-  flex: 0 0 45%;
+  /* Fixed 1:1 aspect across every device — this is what makes canvas
+     positions AND backgrounds look identical on desktop / tablet /
+     mobile regardless of phone-frame aspect. Size is capped so the
+     bottom panel always gets a predictable share (max-width = min
+     of 100% frame width and 50dvh). flex: 0 0 auto lets the aspect
+     + max-width determine the square size; the panel below takes
+     whatever vertical space is left. */
+  flex: 0 0 auto;
+  width: min(100%, 50dvh);
+  aspect-ratio: 1 / 1;
+  align-self: center;
   background:
     linear-gradient(180deg, #6ea16e 0%, #4a7f4a 100%);
   border-bottom: 4px solid var(--border);
@@ -285,15 +295,14 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   overflow: hidden;
 }
 
-/* On short viewports the bottom panel gets cramped (joystick +
-   action-stack + sub-tool row + rotate + action row fight for space),
-   so hand the panel a bit more height by trimming the scene. Below
-   640px we trim harder. */
+/* Shorter viewports: shrink the square scene so the panel below has
+   more breathing room for the joystick / subtool / rotate / action
+   rows. */
 @media (max-height: 760px) {
-  .scene { flex: 0 0 42%; }
+  .scene { width: min(100%, 44dvh); }
 }
 @media (max-height: 640px) {
-  .scene { flex: 0 0 38%; }
+  .scene { width: min(100%, 40dvh); }
 }
 .scene-inner {
   position: absolute;
