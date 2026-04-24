@@ -176,15 +176,19 @@ export function render() {
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rect.width, rect.height);
-  // Fit world into the scene rect (contain; letterbox on the axis the
-  // scene has extra room on). Then apply the user's view pan/zoom in
-  // world units so both pan and zoom are device-independent.
+  // Background is drawn in SCREEN space so it cover-fills the scene on
+  // every device (no empty bands on wide phone aspects). Items live in
+  // WORLD space so their positions are cross-device consistent. The two
+  // don't need to share a coordinate system: the bg is ambience, items
+  // are the content that has to agree across devices.
+  _drawBackgroundCoverFit(rect);
+  // Fit world into the scene rect (contain; tiny letterbox bands on the
+  // axis the scene has extra room on — hidden under the bg draw above).
   const { fit, offsetX, offsetY } = _fitMetrics(rect);
   ctx.translate(offsetX, offsetY);
   ctx.scale(fit, fit);
   ctx.translate(state.view.panX, state.view.panY);
   ctx.scale(state.view.zoom, state.view.zoom);
-  _drawBackground();
   for (const obj of objectsByLayerAsc()) {
     _drawObject(obj);
   }
@@ -373,7 +377,7 @@ export function invalidateAlphaCache(url) {
 }
 
 
-function _drawBackground() {
+function _drawBackgroundCoverFit(rect) {
   const url = state.room.background;
   if (!url) return;
   const img = getCachedImage(url);
@@ -381,15 +385,16 @@ function _drawBackground() {
     loadImage(url).then(render).catch(() => {});
     return;
   }
-  // Background fills the WORLD square with cover semantics; ctx is
-  // already in world coords so we don't care about device pixels here.
+  // Cover-fit the bg into the scene rect (CSS px). Bg always fills edge
+  // to edge; some of the bg may be cropped on aspects different from
+  // the bg's natural aspect, but there are never empty bands.
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
-  const scale = Math.max(WORLD_W / iw, WORLD_H / ih);
+  const scale = Math.max(rect.width / iw, rect.height / ih);
   const dw = iw * scale;
   const dh = ih * scale;
-  const dx = (WORLD_W - dw) / 2;
-  const dy = (WORLD_H - dh) / 2;
+  const dx = (rect.width - dw) / 2;
+  const dy = (rect.height - dh) / 2;
   ctx.drawImage(img, dx, dy, dw, dh);
 }
 
