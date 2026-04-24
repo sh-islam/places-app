@@ -813,6 +813,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   flex-direction: column;
   z-index: 6;
   box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  overflow: hidden;             /* clip internal overflow to popover box */
+  min-height: 0;
 }
 .bg-popover.open { display: flex; }
 .bg-popover-header {
@@ -823,16 +825,25 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   padding: 4px 4px 8px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 6px;
+  flex: 0 0 auto;
 }
 .bg-list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
+  /* Fill remaining popover height AND enable internal scroll. min-
+     height: 0 is the flex-item trick that lets it shrink below its
+     content size so the scroll actually engages (otherwise the grid
+     forces the list to grow, pushing content out the popover's
+     bottom). */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   /* Hide the scrollbar but keep touch/wheel scrolling. Clean look on
      mobile where lots of backgrounds make the popover tall. */
   scrollbar-width: none;
   -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
 }
 .bg-list::-webkit-scrollbar { display: none; }
 .bg-tile {
