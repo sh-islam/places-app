@@ -1,7 +1,7 @@
 // Inventory drawer: lists the current room's objects and lets the user
 // remove, bring-to-front, or center any item.
 
-import { state } from "./state.js";
+import { state, selectSingle, toggleSelection } from "./state.js";
 import {
   bringForward,
   confirmRemoveObject,
@@ -53,6 +53,12 @@ export function initInventory({
   deleteRoomBtn.addEventListener("click", () => _onDeleteRoom(backdrop));
 
   listEl.addEventListener("click", _onListClick);
+  // Long-press → toggle multi-select (same cadence as canvas).
+  listEl.addEventListener("pointerdown", _onListPointerDown);
+  listEl.addEventListener("pointerup", _cancelInvLongPress);
+  listEl.addEventListener("pointerleave", _cancelInvLongPress);
+  listEl.addEventListener("pointercancel", _cancelInvLongPress);
+  listEl.addEventListener("pointermove", _cancelInvLongPress);
 }
 
 
@@ -107,7 +113,10 @@ function _renderList() {
 
 function _buildRow(obj) {
   const row = document.createElement("div");
-  row.className = "inv-item" + (obj.hidden ? " inv-hidden" : "");
+  let cls = "inv-item";
+  if (obj.hidden) cls += " inv-hidden";
+  if (state.selectedIds.has(obj.id)) cls += " inv-selected";
+  row.className = cls;
   row.dataset.id = obj.id;
 
   const img = document.createElement("img");
@@ -140,6 +149,13 @@ function _buildRow(obj) {
 
 
 function _onListClick(e) {
+  // Long-press on this row already toggled the selection; suppress the
+  // synthetic click so we don't immediately collapse back to a single
+  // selection of the same item.
+  if (_invLongPressFired) {
+    _invLongPressFired = false;
+    return;
+  }
   const row = e.target.closest(".inv-item");
   if (!row) return;
   const id = row.dataset.id;
@@ -163,12 +179,50 @@ function _onListClick(e) {
     return;
   }
 
-  // Bare row click: select the item on canvas (same effect as tapping
-  // it directly — glow + selected-mode panel) and drop the drawer.
-  state.selectedId = id;
+  // Bare row click: behave like a tap on the canvas — replace any
+  // multi-selection with just this item, refresh the panel, and drop
+  // the drawer so the user sees the item highlighted on the canvas.
+  // Long-press on the row (see _onListPointerDown) toggles membership
+  // in the multi-selection without closing the drawer.
+  selectSingle(id);
   if (refreshPanel) refreshPanel();
   if (renderScene) renderScene();
   _setOpen(false, backdropEl);
+}
+
+
+// Long-press handler wired in initInventory(). Toggles the pressed
+// row's id in the multi-selection instead of collapsing to a single
+// selection, so users can stack picks the same way the canvas does.
+const _INV_LONG_PRESS_MS = 500;
+let _invLongPressTimer = null;
+let _invLongPressFired = false;
+let _invLongPressStartId = null;
+
+function _onListPointerDown(e) {
+  const row = e.target.closest(".inv-item");
+  if (!row) return;
+  // Ignore long-press arming on the per-row action buttons so their
+  // own click still fires cleanly without being mis-interpreted.
+  if (e.target.closest("button[data-inv-action]")) return;
+  _invLongPressFired = false;
+  _invLongPressStartId = row.dataset.id;
+  clearTimeout(_invLongPressTimer);
+  _invLongPressTimer = setTimeout(() => {
+    _invLongPressTimer = null;
+    _invLongPressFired = true;
+    toggleSelection(_invLongPressStartId);
+    _renderList();
+    if (refreshPanel) refreshPanel();
+    if (renderScene) renderScene();
+  }, _INV_LONG_PRESS_MS);
+}
+
+function _cancelInvLongPress() {
+  if (_invLongPressTimer) {
+    clearTimeout(_invLongPressTimer);
+    _invLongPressTimer = null;
+  }
 }
 
 

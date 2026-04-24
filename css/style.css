@@ -977,6 +977,14 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   cursor: pointer;
 }
 .inv-item:hover { background: var(--btn-hover); }
+/* Multi-select highlight — mirrors the canvas glow accent colour so
+   the user visually connects a long-pressed inventory row to its
+   item on the canvas. */
+.inv-item.inv-selected {
+  border-color: rgba(80, 150, 255, 0.9);
+  box-shadow: 0 0 0 2px rgba(80, 150, 255, 0.35);
+  background: rgba(80, 150, 255, 0.08);
+}
 .inv-item img {
   width: 40px;
   height: 40px;
@@ -1702,6 +1710,16 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 body.sel-is-gif #subtool-shear-btn,
 body.sel-is-gif #subtool-warp-btn,
 body.sel-is-gif #advanced-btn {
+  display: none;
+}
+/* Multi-selection: the single-item-only tools don't apply to a set
+   of items. Hide them so the user doesn't try (and fail). Batch
+   operations (scale / rotate / nudge / colour / drag) stay visible
+   and now iterate over every item in state.selectedIds. */
+body.sel-is-multi #subtool-shear-btn,
+body.sel-is-multi #subtool-warp-btn,
+body.sel-is-multi #advanced-btn,
+body.sel-is-multi #rename-btn {
   display: none;
 }
 .btn-pill.primary {

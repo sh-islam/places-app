@@ -272,10 +272,12 @@ function _initAdjustSliders() {
     const readout = document.getElementById(`${cfg.id}-readout`);
     if (!slider) continue;
     slider.addEventListener("input", () => {
-      const id = state.selectedId;
-      if (!id) return;
+      if (state.selectedIds.size === 0) return;
       const raw = Number(slider.value);
-      setAdjustment(id, cfg.key, cfg.sliderToValue(raw));
+      const value = cfg.sliderToValue(raw);
+      // Apply the colour/tone adjustment to every selected object
+      // so the palette is a batch operation too.
+      for (const id of state.selectedIds) setAdjustment(id, cfg.key, value);
       readout.textContent = `${Math.round(raw)}${cfg.unit}`;
       _applySliderFill(slider);
       render();
@@ -356,10 +358,12 @@ function _initRotationSlider() {
   }
 
   slider.addEventListener("input", () => {
-    const id = state.selectedId;
-    if (!id) return;
+    if (state.selectedIds.size === 0) return;
     const deg = Number(slider.value);
-    setRotation(id, deg);
+    // Rotate every selected object to the same angle. Using a direct
+    // setRotation (not delta) so dragging the slider feels like a
+    // uniform re-aim of the whole group.
+    for (const id of state.selectedIds) setRotation(id, deg);
     readout.textContent = `${Math.round(deg)}°`;
     applySliderFill();
     render();
@@ -399,18 +403,26 @@ function _onPanelClick(evt) {
   const actionBtn = evt.target.closest("button[data-action]");
   if (!actionBtn) return;
 
+  // Transformative actions (rotate/scale/flip/nudge) apply to every
+  // id in the multi-selection so batch-edit behaves as advertised.
+  // Single-target actions (delete, layer ↑↓, visibility toggle,
+  // undo-to-snapshot) stay scoped to the primary selection to keep
+  // their semantics clean.
+  const ids = state.selectedIds.size > 0 ? [...state.selectedIds] : [id];
+  const forAll = (fn) => { for (const i of ids) fn(i); };
+
   switch (actionBtn.dataset.action) {
-    case "rotate-left":  rotateObject(id, -90); _syncSliderFromObject(); break;
-    case "rotate-right": rotateObject(id,  90); _syncSliderFromObject(); break;
-    case "flip-h":       flipHorizontal(id); break;
-    case "flip-v":       flipVertical(id); break;
-    case "scale-up":     scaleObject(id, 1.15); break;
-    case "scale-down":   scaleObject(id, 1 / 1.15); break;
+    case "rotate-left":  forAll((i) => rotateObject(i, -90)); _syncSliderFromObject(); break;
+    case "rotate-right": forAll((i) => rotateObject(i,  90)); _syncSliderFromObject(); break;
+    case "flip-h":       forAll(flipHorizontal); break;
+    case "flip-v":       forAll(flipVertical); break;
+    case "scale-up":     forAll((i) => scaleObject(i, 1.15)); break;
+    case "scale-down":   forAll((i) => scaleObject(i, 1 / 1.15)); break;
     case "layer-up":     bringForward(id); break;
     case "layer-down":   sendBackward(id); break;
     case "toggle-visibility": toggleVisibility(id); refreshForSelection(); break;
     case "delete":       confirmRemoveObject(id); break;
-    case "nudge":        _nudgeSelected(id, actionBtn); break;
+    case "nudge":        forAll((i) => _nudgeSelected(i, actionBtn)); break;
     case "undo":         revertObject(id); _syncSliderFromObject(); break;
   }
   render();

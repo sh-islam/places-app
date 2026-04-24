@@ -201,7 +201,7 @@ export function syncGifLayer(rect) {
     // the 54-CSS-px halo doesn't get shrunk/stretched by the img's
     // transform — visible halo is constant for tiny and huge items
     // alike, matching the canvas PNG path.
-    wrap.style.filter = _wrapFilter(obj.id === state.selectedId);
+    wrap.style.filter = _wrapFilter(state.selectedIds.has(obj.id));
     // Stamp obj.layer as z-index on the WRAPPER so GIF-vs-GIF
     // ordering within the overlay honours bringForward/sendBackward.
     wrap.style.zIndex = String(obj.layer);

@@ -112,4 +112,8 @@ function _refreshSelectedView() {
   const isGif = typeof obj.url === "string"
     && obj.url.toLowerCase().endsWith(".gif");
   document.body.classList.toggle("sel-is-gif", isGif);
+  // Mark the body when a multi-selection is active so CSS can hide
+  // affordances that only make sense on a single item (advanced edit,
+  // rename, per-instance shear / warp handles).
+  document.body.classList.toggle("sel-is-multi", state.selectedIds.size > 1);
 }

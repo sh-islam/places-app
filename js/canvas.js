@@ -1,6 +1,8 @@
 // Canvas rendering, hit-testing, and pointer interaction.
 
-import { state, markDirty } from "./state.js";
+import {
+  state, markDirty, selectSingle, toggleSelection, clearSelection,
+} from "./state.js";
 import { getCachedImage, loadImage } from "./images.js";
 import {
   addObject,
@@ -547,7 +549,7 @@ function _drawObject(obj) {
   // the wide shadow, then with the tight shadow — both shadows land
   // behind the image at the silhouette and combine into the same
   // edge-bright, reach-matched glow GIFs get.
-  const isSelected = obj.id === state.selectedId;
+  const isSelected = state.selectedIds.has(obj.id);
   if (isSelected) {
     const dpr = window.devicePixelRatio || 1;
     ctx.shadowColor = "rgba(80, 150, 255, 0.67)";
@@ -806,7 +808,12 @@ function _screenCoords(evt) {
 function _enterEditMode(id) {
   const obj = findObject(id);
   if (!obj) return;
-  state.selectedId = id;
+  // Preserve an existing multi-selection when entering edit mode so
+  // batch operations (scale / rotate / colour / drag) apply to every
+  // selected item. If the user long-pressed onto an item that isn't
+  // already in the selection, add it in.
+  if (!state.selectedIds.has(id)) selectSingle(id);
+  else state.selectedId = id; // keep `id` as the primary within the set
   snapshotObject(id);
   setMode("edit");
   refreshForSelection();
@@ -836,7 +843,11 @@ function _handleTapSelect(evt) {
     _enterEditMode(hit.id);
     return;
   }
-  state.selectedId = hit ? hit.id : null;
+  // Single tap replaces any multi-selection with a single item (or
+  // clears it entirely on empty-space tap). Long-press is the way to
+  // add to the multi-selection; see _onPointerDown.
+  if (hit) selectSingle(hit.id);
+  else clearSelection();
   _lastTap = hit ? { id: hit.id, t: now } : null;
   refreshForSelection();
   render();
@@ -849,13 +860,13 @@ function _onPointerDown(evt) {
   const zoomed = state.view.zoom > 1;
   const editing = getMode() === "edit";
 
-  // Long-press → enter edit mode. Only armed when we're not already
-  // editing (re-entering from inside edit mode doesn't make sense)
-  // and when the press lands on an actual object. Timer gets
-  // cancelled on any meaningful move (see _onPointerMove) or on
-  // release (see _onPointerUp). The "_longPressFired" flag tells
-  // pointer-up to swallow the release so it doesn't also run the
-  // normal tap-select logic right after we just opened edit mode.
+  // Long-press → toggle the target in the multi-selection. Timer is
+  // armed on pointer-down, cancelled by any drag / release short of
+  // the hold window (see _onPointerMove / _onPointerUp). The
+  // _longPressFired flag tells pointer-up to swallow the release so
+  // it doesn't also run the tap-select logic right after we just
+  // toggled the id in / out of the selection set. Double-tap is still
+  // the shortcut into edit mode; single tap sets a single selection.
   _longPressFired = false;
   _cancelLongPress();
   if (!editing) {
@@ -865,7 +876,9 @@ function _onPointerDown(evt) {
       _longPressTimer = setTimeout(() => {
         _longPressTimer = null;
         _longPressFired = true;
-        _enterEditMode(targetId);
+        toggleSelection(targetId);
+        refreshForSelection();
+        render();
       }, LONG_PRESS_MS);
     }
   }
@@ -924,15 +937,28 @@ function _onPointerDown(evt) {
   // mostly-transparent / mostly-white images can still be grabbed anywhere
   // inside their rectangle — alpha masks exclude the padding pixels.
   if (editing) {
-    const edited = state.selectedId ? findObject(state.selectedId) : null;
-    if (edited && _pointInsideObject(world.x, world.y, edited, true)) {
+    // Edit-mode drag picks up EVERY selected item's start position so
+    // a multi-selection moves together with the same world-delta. Primary
+    // (state.selectedId) drives the hit test. For a single selection this
+    // collapses to the old behaviour.
+    const primary = state.selectedId ? findObject(state.selectedId) : null;
+    const hitBatch = primary
+      && _pointInsideObject(world.x, world.y, primary, true);
+    if (hitBatch) {
+      const startPositions = new Map();
+      for (const id of state.selectedIds) {
+        const o = findObject(id);
+        if (o) startPositions.set(id, { x: o.position.x, y: o.position.y });
+      }
       drag = {
-        id: edited.id,
-        offsetX: world.x - edited.position.x,
-        offsetY: world.y - edited.position.y,
+        id: primary.id,
+        offsetX: world.x - primary.position.x,
+        offsetY: world.y - primary.position.y,
         startX: world.x,
         startY: world.y,
         moved: false,
+        isBatch: state.selectedIds.size > 1,
+        startPositions,
       };
       canvas.setPointerCapture(evt.pointerId);
       return;
@@ -997,7 +1023,17 @@ function _onPointerMove(evt) {
     drag.moved = true;
     _cancelLongPress();
   }
-  moveObject(drag.id, world.x - drag.offsetX, world.y - drag.offsetY);
+  if (drag.isBatch && drag.startPositions) {
+    // Batch drag: same world-space delta to every item in the
+    // multi-selection so they move as a rigid group.
+    const dx = world.x - drag.startX;
+    const dy = world.y - drag.startY;
+    for (const [id, startPos] of drag.startPositions) {
+      moveObject(id, startPos.x + dx, startPos.y + dy);
+    }
+  } else {
+    moveObject(drag.id, world.x - drag.offsetX, world.y - drag.offsetY);
+  }
   render();
 }
 
