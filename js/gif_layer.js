@@ -105,16 +105,20 @@ function _buildMatrix(obj, w, h, rect) {
 // Composite the user's colour adjustments with an optional selection
 // drop-shadow. drop-shadow follows the alpha silhouette so transparent
 // GIF regions don't get a rectangular halo, matching canvas shadowBlur.
-function _composeFilter(obj, selected) {
+function _composeFilter(obj, selected, effScale) {
   const base = filterStringFor(obj);
   const baseStr = base === "none" ? "" : base;
-  // Match canvas shadowBlur visually. Canvas side now normalises
-  // shadowBlur by dpr so the halo is always 54 CSS px across; CSS
-  // drop-shadow is already in CSS px, so 54px here matches that
-  // width exactly regardless of device. Same colour + alpha as the
-  // canvas shadowColor gives the same dissipating falloff density.
+  // Canvas shadowBlur ignores the current transform, so a PNG gets
+  // the same 54 CSS-px halo regardless of obj.scale. CSS
+  // drop-shadow, however, IS scaled by the img's transform — which
+  // made the glow shrink to invisibility on small-scaled GIFs and
+  // balloon on large-scaled ones. Pre-divide the blur radius by the
+  // img's effective on-screen scale (view zoom × fit × object
+  // scale) so the final visible halo always lands at 54 CSS px.
+  const s = Math.max(0.05, effScale || 1);
+  const blurPx = 54 / s;
   const glow = selected
-    ? "drop-shadow(0 0 54px rgba(80, 150, 255, 0.93))"
+    ? `drop-shadow(0 0 ${blurPx}px rgba(80, 150, 255, 0.93))`
     : "";
   const out = [baseStr, glow].filter(Boolean).join(" ");
   return out || "none";
@@ -177,7 +181,16 @@ export function syncGifLayer(rect) {
     img.style.width  = w + "px";
     img.style.height = h + "px";
     img.style.transform = _buildMatrix(obj, w, h, rect);
-    img.style.filter = _composeFilter(obj, obj.id === state.selectedId);
+    // Effective on-screen scale (ignoring rotation, shear) — used to
+    // pre-size the drop-shadow so the visible halo is scale-invariant.
+    const fit = Math.min(rect.width / 1000, rect.height / 1000);
+    const k = state.view.zoom * fit;
+    const sx = (obj.scale && obj.scale.x) || 1;
+    const sy = (obj.scale && obj.scale.y) || 1;
+    const effScale = k * Math.sqrt(Math.abs(sx * sy));
+    img.style.filter = _composeFilter(
+      obj, obj.id === state.selectedId, effScale
+    );
     // Stamp obj.layer as z-index so GIF-vs-GIF ordering within the
     // overlay honours bringForward / sendBackward. (GIFs still paint
     // above all canvas items — see module-level Limitations.)
