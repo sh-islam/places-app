@@ -77,6 +77,50 @@ async function _loadRooms() {
   state.activeIndex = data.active_index;
   syncActiveRoom();
   normalizeLayers();
+  _migrateToWorldCoords();
+}
+
+
+// We switched from device-CSS-px canvas coords to a fixed 1000×1000
+// world. Old rooms have positions in the old CSS-px space (typically
+// 0–500 on the creation device). Detect those and scale positions +
+// object scale so the arrangement lands in the new world roughly where
+// it was visually. If the max position is already >600, assume the
+// room was created under the new system and leave it alone. The
+// migrated flag prevents re-migration after a save.
+function _migrateToWorldCoords() {
+  const NEW_WORLD = 1000;
+  for (const room of state.rooms || []) {
+    if (room.coords_migrated) continue;
+    const objs = room.objects || [];
+    if (objs.length === 0) { room.coords_migrated = true; continue; }
+    let maxAbs = 0;
+    for (const o of objs) {
+      if (!o.position) continue;
+      maxAbs = Math.max(maxAbs, Math.abs(o.position.x || 0),
+                                Math.abs(o.position.y || 0));
+    }
+    if (maxAbs > 600) { room.coords_migrated = true; continue; }
+    // Heuristic scale: assume the old canvas was ~ maxAbs*2 (roughly
+    // doubled, since items tend to cluster near centre). Fall back to
+    // 400 (typical mobile canvas) if the room's contents don't give us
+    // enough signal.
+    const assumedOldCanvas = Math.max(400, maxAbs * 2);
+    const factor = NEW_WORLD / assumedOldCanvas;
+    for (const o of objs) {
+      if (o.position) {
+        o.position.x = (o.position.x || 0) * factor;
+        o.position.y = (o.position.y || 0) * factor;
+      }
+      if (o.scale) {
+        o.scale.x = (o.scale.x || 1) * factor;
+        o.scale.y = (o.scale.y || 1) * factor;
+      }
+    }
+    room.coords_migrated = true;
+    // markDirty so the next save persists the migration.
+    state.dirty = true;
+  }
 }
 
 

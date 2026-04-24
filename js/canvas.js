@@ -25,15 +25,31 @@ let swipe = null;         // { startX, startY } for room-switching swipe (touch)
 let subDrag = null;       // { handleId, obj, startShear, startWarp, startWorld }
 const DRAG_THRESHOLD = 4; // px before we count it as a drag
 // New items are normalized so they render with the same visual *area* —
-// target × target square pixels, regardless of aspect ratio. A wide-short
-// image ends up shorter but wider than a portrait one, but their bulk
-// matches. Fraction is of the canvas's smaller dimension.
+// target × target square pixels, regardless of aspect ratio. Fraction is
+// of the WORLD's smaller dimension so the target is device-independent.
 const PLACE_TARGET_FRAC = 0.25;
 
 // Zoom limits. The user can never zoom out past 1 (canvas would underfill).
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 const ZOOM_STEP = 1.25;
+
+// ---- World-space canvas ----
+// Every object's `position` and `scale` are stored in WORLD units, not
+// CSS pixels. Rendering fits the world into the current canvas rect
+// (contain-style, with letterbox bands on whatever axis is mismatched),
+// so a flower at (500, 500) looks the same on desktop as on mobile
+// regardless of how big the scene area is.
+const WORLD_W = 1000;
+const WORLD_H = 1000;
+
+function _fitMetrics(rect) {
+  const r = rect || canvas.getBoundingClientRect();
+  const fit = Math.min(r.width / WORLD_W, r.height / WORLD_H);
+  const offsetX = (r.width  - WORLD_W * fit) / 2;
+  const offsetY = (r.height - WORLD_H * fit) / 2;
+  return { fit, offsetX, offsetY, rect: r };
+}
 
 // Hit-testing uses the image's alpha channel so transparent pixels don't count.
 // Cache the per-image alpha mask the first time we need it.
@@ -84,10 +100,9 @@ async function _placeCatalogItem(item, worldX, worldY) {
 function _initialScaleForImage(img, url) {
   // Scale by the geometric mean of the non-transparent content bbox so every
   // new item lands with roughly the same rendered AREA regardless of source
-  // aspect ratio or absolute image size. This keeps extreme-landscape images
-  // (man_bald_ripped at 1407x768) from looking tiny next to near-square ones.
-  const rect = canvas.getBoundingClientRect();
-  const target = Math.min(rect.width, rect.height) * PLACE_TARGET_FRAC;
+  // aspect ratio or absolute image size. Target is expressed in WORLD units
+  // so initial size is device-independent.
+  const target = Math.min(WORLD_W, WORLD_H) * PLACE_TARGET_FRAC;
   const cache = _buildAlphaCache(url, img);
   const cw = cache?.bbox?.w || img.naturalWidth;
   const ch = cache?.bbox?.h || img.naturalHeight;
@@ -121,27 +136,32 @@ export function resetView() {
 function _setZoom(nextZoom) {
   const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
   const rect = canvas.getBoundingClientRect();
-  const cx = rect.width / 2;
-  const cy = rect.height / 2;
-  const { x: wx, y: wy } = _screenToWorld(cx, cy);
+  const { x: wx, y: wy } = _screenToWorld(rect.width / 2, rect.height / 2);
   state.view.zoom = z;
-  state.view.panX = cx - wx * z;
-  state.view.panY = cy - wy * z;
-  _clampPan(rect);
+  // After zoom the world point wx/wy should still appear at scene centre.
+  // In world coords the centre is (WORLD_W/2, WORLD_H/2) before view-pan.
+  state.view.panX = WORLD_W / 2 - wx * z;
+  state.view.panY = WORLD_H / 2 - wy * z;
+  _clampPan();
   render();
 }
 
-function _clampPan(rect) {
+function _clampPan() {
   const v = state.view;
-  const minPanX = rect.width  - rect.width  * v.zoom;
-  const minPanY = rect.height - rect.height * v.zoom;
+  const minPanX = WORLD_W - WORLD_W * v.zoom;
+  const minPanY = WORLD_H - WORLD_H * v.zoom;
   v.panX = Math.max(minPanX, Math.min(0, v.panX));
   v.panY = Math.max(minPanY, Math.min(0, v.panY));
 }
 
 function _screenToWorld(sx, sy) {
+  // Invert: screen → (subtract fit offset, divide by fit) → world-pre-view
+  // → (subtract pan, divide by zoom) → world.
+  const { fit, offsetX, offsetY } = _fitMetrics();
   const v = state.view;
-  return { x: (sx - v.panX) / v.zoom, y: (sy - v.panY) / v.zoom };
+  const preViewX = (sx - offsetX) / fit;
+  const preViewY = (sy - offsetY) / fit;
+  return { x: (preViewX - v.panX) / v.zoom, y: (preViewY - v.panY) / v.zoom };
 }
 
 
@@ -156,9 +176,15 @@ export function render() {
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rect.width, rect.height);
+  // Fit world into the scene rect (contain; letterbox on the axis the
+  // scene has extra room on). Then apply the user's view pan/zoom in
+  // world units so both pan and zoom are device-independent.
+  const { fit, offsetX, offsetY } = _fitMetrics(rect);
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(fit, fit);
   ctx.translate(state.view.panX, state.view.panY);
   ctx.scale(state.view.zoom, state.view.zoom);
-  _drawBackground(rect);
+  _drawBackground();
   for (const obj of objectsByLayerAsc()) {
     _drawObject(obj);
   }
@@ -225,8 +251,12 @@ function _objLocalToWorld(obj, lx, ly) {
 
 
 function _worldToScreen(p) {
+  const { fit, offsetX, offsetY } = _fitMetrics();
   const v = state.view;
-  return { x: p.x * v.zoom + v.panX, y: p.y * v.zoom + v.panY };
+  return {
+    x: offsetX + fit * (p.x * v.zoom + v.panX),
+    y: offsetY + fit * (p.y * v.zoom + v.panY),
+  };
 }
 
 
@@ -343,7 +373,7 @@ export function invalidateAlphaCache(url) {
 }
 
 
-function _drawBackground(rect) {
+function _drawBackground() {
   const url = state.room.background;
   if (!url) return;
   const img = getCachedImage(url);
@@ -351,15 +381,15 @@ function _drawBackground(rect) {
     loadImage(url).then(render).catch(() => {});
     return;
   }
-  const cw = rect.width;
-  const ch = rect.height;
+  // Background fills the WORLD square with cover semantics; ctx is
+  // already in world coords so we don't care about device pixels here.
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
-  const scale = Math.max(cw / iw, ch / ih);
+  const scale = Math.max(WORLD_W / iw, WORLD_H / ih);
   const dw = iw * scale;
   const dh = ih * scale;
-  const dx = (cw - dw) / 2;
-  const dy = (ch - dh) / 2;
+  const dx = (WORLD_W - dw) / 2;
+  const dy = (WORLD_H - dh) / 2;
   ctx.drawImage(img, dx, dy, dw, dh);
 }
 
@@ -630,11 +660,16 @@ function _onPointerDown(evt) {
 
 
 function _startPan(evt) {
+  // Capture the fit scale at drag start so converting the screen-space
+  // pointer delta to WORLD-space pan delta uses a stable factor even if
+  // the window resizes mid-drag (rare but theoretically possible).
+  const { fit } = _fitMetrics();
   return {
     startClientX: evt.clientX,
     startClientY: evt.clientY,
     startPanX: state.view.panX,
     startPanY: state.view.panY,
+    fit,
     moved: false,
   };
 }
@@ -653,9 +688,11 @@ function _onPointerMove(evt) {
     // Ignore tiny finger jitter so a fat-fingered tap doesn't nudge the pan.
     if (!pan.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
     pan.moved = true;
-    state.view.panX = pan.startPanX + dx;
-    state.view.panY = pan.startPanY + dy;
-    _clampPan(canvas.getBoundingClientRect());
+    // Pan is stored in WORLD units — divide the screen-px delta by the
+    // fit scale captured at drag start.
+    state.view.panX = pan.startPanX + dx / pan.fit;
+    state.view.panY = pan.startPanY + dy / pan.fit;
+    _clampPan();
     render();
     return;
   }
@@ -744,14 +781,19 @@ function _wirePinchZoom() {
     const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinch.zoom * scale));
 
     const rect = canvas.getBoundingClientRect();
-    const cx = pinch.cx - rect.left;
-    const cy = pinch.cy - rect.top;
-    const wx = (cx - state.view.panX) / state.view.zoom;
-    const wy = (cy - state.view.panY) / state.view.zoom;
+    // Resolve the world point under the pinch centre, then recompute
+    // pan so that same world point stays at that screen position after
+    // the zoom change. Everything is in WORLD units now.
+    const scx = pinch.cx - rect.left;
+    const scy = pinch.cy - rect.top;
+    const world = _screenToWorld(scx, scy);
+    const { fit, offsetX, offsetY } = _fitMetrics(rect);
     state.view.zoom = nextZoom;
-    state.view.panX = cx - wx * nextZoom;
-    state.view.panY = cy - wy * nextZoom;
-    _clampPan(rect);
+    // Target: offsetX + fit*(pan + nextZoom*world.x) = scx
+    //  ⇒ pan = (scx - offsetX)/fit - nextZoom*world.x
+    state.view.panX = (scx - offsetX) / fit - nextZoom * world.x;
+    state.view.panY = (scy - offsetY) / fit - nextZoom * world.y;
+    _clampPan();
     render();
   }, { passive: false });
 

@@ -284,6 +284,17 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   position: relative;
   overflow: hidden;
 }
+
+/* On short viewports the bottom panel gets cramped (joystick +
+   action-stack + sub-tool row + rotate + action row fight for space),
+   so hand the panel a bit more height by trimming the scene. Below
+   640px we trim harder. */
+@media (max-height: 760px) {
+  .scene { flex: 0 0 42%; }
+}
+@media (max-height: 640px) {
+  .scene { flex: 0 0 38%; }
+}
 .scene-inner {
   position: absolute;
   inset: 0;
@@ -1042,6 +1053,53 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 .action-stack .icon-btn {
   width: 54px;
   height: 54px;
+}
+
+/* --- Short-viewport shrink for edit-mode controls ------------------
+   Below 760px the panel can't fit the full-size joystick + arrows +
+   action-stack + all three action/sub-tool rows; shrink everything
+   proportionally so it fits without scrollbars. Second tier at
+   <=640px handles iPhone SE and similarly cramped devices. */
+@media (max-height: 760px) {
+  .controller {
+    grid-template-columns: 40px 108px 40px;
+    grid-template-rows:    40px 108px 40px;
+    gap: 3px;
+  }
+  .joystick      { width: 108px; height: 108px; }
+  .joystick-knob { width: 48px;  height: 48px; }
+  .dpad-btn      { width: 40px;  height: 40px; font-size: 13px; }
+  .action-stack {
+    grid-template-columns: 46px 46px;
+    grid-auto-rows: 46px;
+    gap: 4px 10px;
+  }
+  .action-stack .round-btn,
+  .action-stack .icon-btn { width: 46px; height: 46px; }
+  .action-stack .round-btn { font-size: 16px; }
+  .mode        { gap: 4px; }
+  .rotate-row  { gap: 4px; }
+  .subtool-row .btn-pill { font-size: 11px; padding: 4px 6px; }
+}
+@media (max-height: 640px) {
+  .controller {
+    grid-template-columns: 36px 92px 36px;
+    grid-template-rows:    36px 92px 36px;
+    gap: 2px;
+  }
+  .joystick      { width: 92px; height: 92px; }
+  .joystick-knob { width: 40px; height: 40px; }
+  .dpad-btn      { width: 36px; height: 36px; font-size: 12px; }
+  .action-stack {
+    grid-template-columns: 42px 42px;
+    grid-auto-rows: 42px;
+    gap: 3px 8px;
+  }
+  .action-stack .round-btn,
+  .action-stack .icon-btn { width: 42px; height: 42px; }
+  .action-stack .round-btn { font-size: 15px; }
+  .panel-header { padding: 2px 0 4px; margin-bottom: 6px; }
+  .edit-top { padding: 0; }
 }
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {
