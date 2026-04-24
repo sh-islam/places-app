@@ -45,14 +45,12 @@ const WORLD_H = 1000;
 
 function _fitMetrics(rect) {
   const r = rect || canvas.getBoundingClientRect();
-  // COVER fit: world always fills the scene rect. Some of the world
-  // (outside the axis that doesn't match aspect) ends up offscreen,
-  // but there are never empty bands around the world. Positions near
-  // the corners may be clipped on aspects very different from 1:1 —
-  // acceptable for this app; users keep items in the centre anyway.
-  // Also means a user zoom applies to BOTH bg and items together
-  // since everything lives under the same world transform.
-  const fit = Math.max(r.width / WORLD_W, r.height / WORLD_H);
+  // CONTAIN fit: the whole 1000×1000 world is always visible; items
+  // at the same world coord render at the same world-relative spot on
+  // every device. Small letterbox bands around the world on non-
+  // square aspects are HIDDEN under a screen-space bg cover-fit draw
+  // in render().
+  const fit = Math.min(r.width / WORLD_W, r.height / WORLD_H);
   const offsetX = (r.width  - WORLD_W * fit) / 2;
   const offsetY = (r.height - WORLD_H * fit) / 2;
   return { fit, offsetX, offsetY, rect: r };
@@ -142,40 +140,36 @@ export function resetView() {
 
 function _setZoom(nextZoom) {
   const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
-  const rect = canvas.getBoundingClientRect();
-  const { x: wx, y: wy } = _screenToWorld(rect.width / 2, rect.height / 2);
   state.view.zoom = z;
-  // After zoom the world point wx/wy should still appear at scene centre.
-  // In world coords the centre is (WORLD_W/2, WORLD_H/2) before view-pan.
-  state.view.panX = WORLD_W / 2 - wx * z;
-  state.view.panY = WORLD_H / 2 - wy * z;
   _clampPan();
   render();
 }
 
 function _clampPan() {
+  // Pan is in screen-space CSS px. At zoom z the scene content is
+  // rendered at z× its natural size; pan up to half the overflow
+  // (content - scene) / 2 in each direction is allowed. At zoom=1
+  // there's no overflow so pan must be 0.
   const v = state.view;
   const rect = canvas.getBoundingClientRect();
-  // world→screen scale factor at current zoom
-  const ws = Math.max(rect.width / WORLD_W, rect.height / WORLD_H) * v.zoom;
-  // Hidden world (in world units) that the user can pan to reveal.
-  // At zoom=1 on aspects mismatched with the 1:1 world, cover-fit
-  // already hides some world on the short axis — that's the non-zero
-  // hidden value even without the user zooming in.
-  const hiddenX = Math.max(0, WORLD_W - rect.width / ws);
-  const hiddenY = Math.max(0, WORLD_H - rect.height / ws);
-  v.panX = Math.max(-hiddenX / 2, Math.min(hiddenX / 2, v.panX));
-  v.panY = Math.max(-hiddenY / 2, Math.min(hiddenY / 2, v.panY));
+  const maxPanX = Math.max(0, rect.width  * (v.zoom - 1) / 2);
+  const maxPanY = Math.max(0, rect.height * (v.zoom - 1) / 2);
+  v.panX = Math.max(-maxPanX, Math.min(maxPanX, v.panX));
+  v.panY = Math.max(-maxPanY, Math.min(maxPanY, v.panY));
 }
 
 function _screenToWorld(sx, sy) {
-  // Invert: screen → (subtract fit offset, divide by fit) → world-pre-view
-  // → (subtract pan, divide by zoom) → world.
-  const { fit, offsetX, offsetY } = _fitMetrics();
+  // Undo the transform chain: outer view (pan + zoom around scene
+  // centre) → fit (world → scene-local).
+  const rect = canvas.getBoundingClientRect();
+  const cx = rect.width / 2, cy = rect.height / 2;
   const v = state.view;
-  const preViewX = (sx - offsetX) / fit;
-  const preViewY = (sy - offsetY) / fit;
-  return { x: (preViewX - v.panX) / v.zoom, y: (preViewY - v.panY) / v.zoom };
+  // Undo outer view
+  const preViewX = (sx - cx - v.panX) / v.zoom + cx;
+  const preViewY = (sy - cy - v.panY) / v.zoom + cy;
+  // Undo fit
+  const { fit, offsetX, offsetY } = _fitMetrics(rect);
+  return { x: (preViewX - offsetX) / fit, y: (preViewY - offsetY) / fit };
 }
 
 
@@ -190,15 +184,25 @@ export function render() {
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, rect.width, rect.height);
-  // World transform (cover-fit + user's view pan/zoom). Everything —
-  // bg and items — lives inside this so a user zoom scales them
-  // together and they don't drift relative to each other.
+  // Outer view transform: zoom around scene center + pan in screen
+  // pixels. Applies to EVERYTHING (bg AND items), so the user's
+  // zoom/pan scales and shifts the composite uniformly. Pan is
+  // stored in screen px (state.view.panX / panY) so one CSS px of
+  // drag maps to one CSS px of shift regardless of zoom level.
+  const cx = rect.width / 2, cy = rect.height / 2;
+  const z = state.view.zoom;
+  ctx.translate(cx + state.view.panX, cy + state.view.panY);
+  ctx.scale(z, z);
+  ctx.translate(-cx, -cy);
+
+  // Background: cover-fit into the scene rect (pre-view coords).
+  _drawBackgroundCoverFit(rect);
+
+  // Items: map world (1000×1000) into scene-local via contain-fit,
+  // no extra zoom/pan here — the outer view transform has it.
   const { fit, offsetX, offsetY } = _fitMetrics(rect);
   ctx.translate(offsetX, offsetY);
   ctx.scale(fit, fit);
-  ctx.translate(state.view.panX, state.view.panY);
-  ctx.scale(state.view.zoom, state.view.zoom);
-  _drawBackground();
   for (const obj of objectsByLayerAsc()) {
     _drawObject(obj);
   }
@@ -265,11 +269,17 @@ function _objLocalToWorld(obj, lx, ly) {
 
 
 function _worldToScreen(p) {
-  const { fit, offsetX, offsetY } = _fitMetrics();
+  const rect = canvas.getBoundingClientRect();
+  const { fit, offsetX, offsetY } = _fitMetrics(rect);
+  const cx = rect.width / 2, cy = rect.height / 2;
   const v = state.view;
+  // Apply fit then outer view: scene-local = (offsetX + fit*wx, ...);
+  // screen = v.zoom * (scene-local - scene_center) + scene_center + pan
+  const slX = offsetX + fit * p.x;
+  const slY = offsetY + fit * p.y;
   return {
-    x: offsetX + fit * (p.x * v.zoom + v.panX),
-    y: offsetY + fit * (p.y * v.zoom + v.panY),
+    x: v.zoom * (slX - cx) + cx + v.panX,
+    y: v.zoom * (slY - cy) + cy + v.panY,
   };
 }
 
@@ -387,7 +397,7 @@ export function invalidateAlphaCache(url) {
 }
 
 
-function _drawBackground() {
+function _drawBackgroundCoverFit(rect) {
   const url = state.room.background;
   if (!url) return;
   const img = getCachedImage(url);
@@ -395,18 +405,17 @@ function _drawBackground() {
     loadImage(url).then(render).catch(() => {});
     return;
   }
-  // ctx is already in world space (pan/zoom applied). Cover-fit the
-  // bg into the 1000×1000 world square so it extends past the world's
-  // visible area — combined with cover-fit world → scene, the bg
-  // always fills the visible scene without bands, and a user zoom
-  // just scales it along with items.
+  // ctx is currently in the outer-view-transformed scene space.
+  // Cover-fit the bg into the scene rect (pre-view CSS px).
+  const BLEED = 2;
   const iw = img.naturalWidth;
   const ih = img.naturalHeight;
-  const scale = Math.max(WORLD_W / iw, WORLD_H / ih);
+  const scale = Math.max((rect.width + 2 * BLEED) / iw,
+                         (rect.height + 2 * BLEED) / ih);
   const dw = iw * scale;
   const dh = ih * scale;
-  const dx = (WORLD_W - dw) / 2;
-  const dy = (WORLD_H - dh) / 2;
+  const dx = (rect.width  - dw) / 2;
+  const dy = (rect.height - dh) / 2;
   ctx.drawImage(img, dx, dy, dw, dh);
 }
 
@@ -686,16 +695,11 @@ function _onPointerDown(evt) {
 
 
 function _startPan(evt) {
-  // Capture the fit scale at drag start so converting the screen-space
-  // pointer delta to WORLD-space pan delta uses a stable factor even if
-  // the window resizes mid-drag (rare but theoretically possible).
-  const { fit } = _fitMetrics();
   return {
     startClientX: evt.clientX,
     startClientY: evt.clientY,
     startPanX: state.view.panX,
     startPanY: state.view.panY,
-    fit,
     moved: false,
   };
 }
@@ -714,10 +718,9 @@ function _onPointerMove(evt) {
     // Ignore tiny finger jitter so a fat-fingered tap doesn't nudge the pan.
     if (!pan.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
     pan.moved = true;
-    // Pan is stored in WORLD units — divide the screen-px delta by the
-    // fit scale captured at drag start.
-    state.view.panX = pan.startPanX + dx / pan.fit;
-    state.view.panY = pan.startPanY + dy / pan.fit;
+    // Pan is stored in screen CSS-px. One px of drag ⇒ one px of shift.
+    state.view.panX = pan.startPanX + dx;
+    state.view.panY = pan.startPanY + dy;
     _clampPan();
     render();
     return;
@@ -807,18 +810,20 @@ function _wirePinchZoom() {
     const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, pinch.zoom * scale));
 
     const rect = canvas.getBoundingClientRect();
-    // Resolve the world point under the pinch centre, then recompute
-    // pan so that same world point stays at that screen position after
-    // the zoom change. Everything is in WORLD units now.
+    // Keep the world point under the pinch centre fixed on-screen.
+    // In the new outer-view model:
+    //   screen = z*(sceneLocal - cx) + cx + pan
+    // So: pan = screen - cx - z*(sceneLocal - cx) = screen - (cx + z*(sceneLocal - cx))
     const scx = pinch.cx - rect.left;
     const scy = pinch.cy - rect.top;
     const world = _screenToWorld(scx, scy);
     const { fit, offsetX, offsetY } = _fitMetrics(rect);
+    const cx = rect.width / 2, cy = rect.height / 2;
+    const slX = offsetX + fit * world.x;
+    const slY = offsetY + fit * world.y;
     state.view.zoom = nextZoom;
-    // Target: offsetX + fit*(pan + nextZoom*world.x) = scx
-    //  ⇒ pan = (scx - offsetX)/fit - nextZoom*world.x
-    state.view.panX = (scx - offsetX) / fit - nextZoom * world.x;
-    state.view.panY = (scy - offsetY) / fit - nextZoom * world.y;
+    state.view.panX = scx - cx - nextZoom * (slX - cx);
+    state.view.panY = scy - cy - nextZoom * (slY - cy);
     _clampPan();
     render();
   }, { passive: false });
