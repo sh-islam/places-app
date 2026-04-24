@@ -71,11 +71,11 @@ export function initControls() {
     if (shearBtn) shearBtn.classList.remove("active");
     if (warpBtn)  warpBtn.classList.remove("active");
     setMode("selected");
-    // Redraw the scene without handles / dashed bbox + flush room
-    // changes (shear / warp / rotate / scale / etc.) to the server so
-    // the user doesn't need to hit SAVE separately after every edit.
+    // Redraw the scene without handles / dashed bbox. Persistence is
+    // left to the SAVE pill in the panel header so DONE doesn't
+    // silently push every half-formed edit to the server — keeps
+    // the Reset / Revert affordances meaningful.
     render();
-    if (state.dirty) _saveRoom();
   });
 
   document.querySelector(".panel").addEventListener("click", _onPanelClick);
