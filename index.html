@@ -129,8 +129,12 @@
         </div>
       </div>
 
-      <!-- Edit mode: joystick + 4-button D-pad + action stack + slider -->
+      <!-- Edit mode: joystick + 4-button D-pad + action stack + slider.
+           All children wrapped in .edit-scale-wrap so JS can apply a
+           transform: scale() sized to fit the available panel height
+           — no scroll required on short viewports. -->
       <div data-mode="edit" class="mode">
+        <div class="edit-scale-wrap">
         <div class="edit-top">
           <!-- Left cluster: analog joystick at centre, 4 step-nudge
                arrows around it (N/S/E/W). 3×3 grid layout in CSS. -->
@@ -208,6 +212,7 @@
             <button id="advanced-btn" class="btn-icon admin-only" title="Advanced edit (erase, crop, shear, warp)">🛠️</button>
           </div>
           <button id="done-btn" class="btn-pill primary">DONE</button>
+        </div>
         </div>
       </div>
 

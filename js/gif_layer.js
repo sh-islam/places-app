@@ -108,16 +108,17 @@ function _buildMatrix(obj, w, h, rect) {
 function _composeFilter(obj, selected) {
   const base = filterStringFor(obj);
   const baseStr = base === "none" ? "" : base;
-  // Stacked identical drop-shadows build density instead of spreading
-  // thin. Three full-alpha passes at the same blur radius each add
-  // another tinted halo on top of the previous — the cumulative look
-  // matches canvas ctx.shadowBlur=54 + shadowColor rgba(80,150,255,0.93)
-  // for selected PNGs much more closely than a single wide drop-shadow
-  // (which reads as an outline rather than a glow).
+  // Match canvas shadowBlur=54 + shadowColor rgba(80,150,255,0.93):
+  // canvas shadowBlur N is approximately a Gaussian with stddev N/2,
+  // which at alpha 0.93 produces a soft dissipating halo ~27px wide
+  // around the silhouette. CSS drop-shadow(0 0 Bpx) is also a
+  // Gaussian, but at the SAME stddev so we halve the radius: 27px
+  // CSS drop-shadow visually spreads like canvas shadowBlur=54. A
+  // single pass gives the dissipating falloff (density near edge,
+  // fading outward) instead of the uniform "outline" feel of a
+  // tighter pass or the hard outline of too-wide a pass.
   const glow = selected
-    ? "drop-shadow(0 0 12px rgba(80, 150, 255, 1))"
-      + " drop-shadow(0 0 12px rgba(80, 150, 255, 1))"
-      + " drop-shadow(0 0 12px rgba(80, 150, 255, 1))"
+    ? "drop-shadow(0 0 27px rgba(80, 150, 255, 0.93))"
     : "";
   const out = [baseStr, glow].filter(Boolean).join(" ");
   return out || "none";

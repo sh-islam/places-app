@@ -1351,6 +1351,18 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .edit-top { padding: 0; }
 }
 
+/* Wrapper around every edit-mode control — JS measures this, then
+   applies transform: scale() + an explicit height so the whole
+   joystick + action stack + subtool + DONE row composite fits the
+   available panel height with no scrolling on any viewport. */
+.edit-scale-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 /* Edit menu no-scroll pass: shrink every control in edit mode
    aggressively per-element so the whole panel (joystick + action
    stack + subtool + bottom/DONE) fits inside the short mobile
