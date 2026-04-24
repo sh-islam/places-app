@@ -5,6 +5,7 @@ import { getCachedImage, loadImage } from "./images.js";
 import {
   addObject,
   createFromCatalog,
+  DEFAULT_ADJUSTMENTS,
   filterStringFor,
   findObject,
   moveObject,
@@ -462,12 +463,21 @@ function _drawObject(obj) {
   // so centring its own (w, h) keeps the warp visually anchored on
   // obj.position regardless of how far corners were dragged.
   const warped = obj.warp ? _getWarpedCanvas(obj, img) : null;
-  const source = warped ? warped.canvas : img;
+  let source = warped ? warped.canvas : img;
+  // Hue / sat / brightness / contrast adjustments: baked into an
+  // off-screen canvas via per-pixel math and cached, instead of
+  // relying on ctx.filter. Some mobile browsers (iOS Safari ≤17.3,
+  // some Chromium forks) silently drop ctx.filter + drawImage, which
+  // made adjustments invisible on one device while desktop looked
+  // right. Pixel baking is consistent across every browser.
+  const filterStr = filterStringFor(obj);
+  if (filterStr !== "none") {
+    source = _getFilteredCanvas(obj, source, filterStr);
+  }
   const w = source.naturalWidth || source.width;
   const h = source.naturalHeight || source.height;
 
   ctx.save();
-  ctx.filter = filterStringFor(obj);
   ctx.translate(obj.position.x, obj.position.y);
   ctx.rotate((obj.rotation_z * Math.PI) / 180);
   ctx.scale(obj.scale.x, obj.scale.y);
@@ -484,8 +494,8 @@ function _drawObject(obj) {
   // Selected item: soft accent-tinted shadow that hugs the image's
   // alpha silhouette (no outline, transparent PNG regions stay clear).
   if (obj.id === state.selectedId) {
-    ctx.shadowColor = "rgba(80, 150, 255, 0.89)";
-    ctx.shadowBlur = 26;
+    ctx.shadowColor = "rgba(80, 150, 255, 0.93)";
+    ctx.shadowBlur = 27;
   }
   ctx.drawImage(source, -w / 2, -h / 2, w, h);
   ctx.restore();
@@ -516,6 +526,89 @@ function _getWarpedCanvas(obj, img) {
 export function invalidateWarpCache(url) {
   for (const [id, entry] of _warpCache) {
     if (entry.url === url) _warpCache.delete(id);
+  }
+}
+
+
+// ---- Per-object filter (hue / sat / brightness / contrast) cache ----
+// ctx.filter + drawImage is flaky on older mobile Safari and some
+// Chromium forks (silently skipped → adjustments don't show). We bake
+// the filter into an off-screen canvas via a pure-JS per-pixel pass,
+// keyed on obj.id, so every browser gets identical output. Cache
+// holds {sourceRef, sig, canvas}; invalidates automatically when the
+// source reference OR the filter signature changes.
+const _filteredCache = new Map();
+
+function _getFilteredCanvas(obj, source, filterStr) {
+  const existing = _filteredCache.get(obj.id);
+  if (existing && existing.sourceRef === source && existing.sig === filterStr) {
+    return existing.canvas;
+  }
+  const w = source.naturalWidth || source.width;
+  const h = source.naturalHeight || source.height;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const cx = c.getContext("2d");
+  cx.drawImage(source, 0, 0);
+  try {
+    const imageData = cx.getImageData(0, 0, w, h);
+    _applyFiltersPixels(imageData, obj.adjustments || DEFAULT_ADJUSTMENTS);
+    cx.putImageData(imageData, 0, 0);
+  } catch (e) {
+    // CORS-tainted canvases can't be read; fall back to unfiltered.
+    console.warn("pixel filter failed (tainted canvas?)", e);
+    return source;
+  }
+  _filteredCache.set(obj.id, { sourceRef: source, sig: filterStr, canvas: c });
+  return c;
+}
+
+
+// Pixel-pass hue rotation + saturation + brightness + contrast.
+// Matches CSS filter ordering: hue-rotate → saturate → brightness →
+// contrast. Hue rotation matrix is the CSS-standard luminance-
+// preserving formulation.
+function _applyFiltersPixels(imageData, adjustments) {
+  const a = adjustments;
+  const hue = a.hue || 0;
+  const sat = a.saturation == null ? 1 : a.saturation;
+  const bri = a.brightness == null ? 1 : a.brightness;
+  const con = a.contrast   == null ? 1 : a.contrast;
+
+  const d = imageData.data;
+  const cosH = Math.cos(hue * Math.PI / 180);
+  const sinH = Math.sin(hue * Math.PI / 180);
+  const m00 = 0.213 + 0.787 * cosH - 0.213 * sinH;
+  const m01 = 0.715 - 0.715 * cosH - 0.715 * sinH;
+  const m02 = 0.072 - 0.072 * cosH + 0.928 * sinH;
+  const m10 = 0.213 - 0.213 * cosH + 0.143 * sinH;
+  const m11 = 0.715 + 0.285 * cosH + 0.140 * sinH;
+  const m12 = 0.072 - 0.072 * cosH - 0.283 * sinH;
+  const m20 = 0.213 - 0.213 * cosH - 0.787 * sinH;
+  const m21 = 0.715 - 0.715 * cosH + 0.715 * sinH;
+  const m22 = 0.072 + 0.928 * cosH + 0.072 * sinH;
+
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] === 0) continue;  // fully transparent
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    let nr = r * m00 + g * m01 + b * m02;
+    let ng = r * m10 + g * m11 + b * m12;
+    let nb = r * m20 + g * m21 + b * m22;
+    // Saturate (pull toward luma)
+    const luma = 0.2126 * nr + 0.7152 * ng + 0.0722 * nb;
+    nr = luma + (nr - luma) * sat;
+    ng = luma + (ng - luma) * sat;
+    nb = luma + (nb - luma) * sat;
+    // Brightness
+    nr *= bri; ng *= bri; nb *= bri;
+    // Contrast around 128 (CSS contrast model)
+    nr = (nr - 128) * con + 128;
+    ng = (ng - 128) * con + 128;
+    nb = (nb - 128) * con + 128;
+    d[i]     = nr < 0 ? 0 : nr > 255 ? 255 : nr;
+    d[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
+    d[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
   }
 }
 

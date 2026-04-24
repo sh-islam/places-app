@@ -5,6 +5,7 @@ import { state } from "./state.js";
 import {
   bringForward,
   confirmRemoveObject,
+  filterStringFor,
   findObject,
   moveObject,
   toggleVisibility,
@@ -111,6 +112,12 @@ function _buildRow(obj) {
   const img = document.createElement("img");
   img.src = assetUrl(obj.url);
   img.alt = "";
+  // Reflect per-instance hue/sat/brightness/contrast so the
+  // thumbnail matches what the canvas renders. Skew + perspective
+  // warp are intentionally skipped — they'd require a pre-rendered
+  // canvas per row and the thumbnail shouldn't carry that cost.
+  const f = filterStringFor(obj);
+  if (f !== "none") img.style.filter = f;
   row.appendChild(img);
 
   const name = document.createElement("div");
