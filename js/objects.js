@@ -116,6 +116,23 @@ export function clearSnapshot(id) {
 }
 
 
+// True iff the current object differs from its pre-edit snapshot
+// across any of the fields revertObject restores. No snapshot means
+// nothing to compare to (Revert is a no-op for that case), so
+// return false.
+export function isObjectModifiedSinceSnapshot(id) {
+  const snap = _snapshots.get(id);
+  const o = findObject(id);
+  if (!snap || !o) return false;
+  const fields = ["position", "scale", "rotation_z", "layer",
+                  "adjustments", "shear", "warp"];
+  for (const k of fields) {
+    if (JSON.stringify(o[k]) !== JSON.stringify(snap[k])) return true;
+  }
+  return false;
+}
+
+
 // Per-object color adjustments. `key` is one of hue|saturation|brightness|contrast.
 // Missing `adjustments` on older/migrated objects is lazily filled with defaults.
 export function setAdjustment(id, key, value) {

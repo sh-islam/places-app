@@ -200,6 +200,14 @@ function _clampPan() {
   v.panY = Math.max(-maxPanY, Math.min(maxPanY, v.panY));
 }
 
+// Post-render hook: controls.js subscribes here to keep the Revert
+// button's disabled state in sync with "is the current selection
+// modified since its edit-mode snapshot?". A setter sidesteps the
+// canvas.js ↔ controls.js import cycle.
+let _afterRender = null;
+export function setAfterRenderHook(fn) { _afterRender = fn; }
+
+
 // World coordinate at the centre of the canvas's current view. Used
 // by the inventory "centre in canvas" action so an item lands in the
 // visible middle regardless of current zoom/pan.
@@ -279,6 +287,8 @@ export function render() {
   // Mirror canvas transforms onto any DOM-overlay GIFs so they sit
   // exactly where canvas rendering would have placed them.
   syncGifLayer(rect);
+
+  if (_afterRender) _afterRender();
 }
 
 

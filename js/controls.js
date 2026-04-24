@@ -10,6 +10,7 @@ import {
   findObject,
   flipHorizontal,
   flipVertical,
+  isObjectModifiedSinceSnapshot,
   moveObject,
   revertObject,
   rotateObject,
@@ -21,7 +22,14 @@ import {
   snapshotObject,
 } from "./objects.js";
 import { api } from "./api.js";
-import { render, zoomIn, zoomOut, resetView, getCanvasCenterWorld } from "./canvas.js";
+import {
+  render,
+  zoomIn,
+  zoomOut,
+  resetView,
+  getCanvasCenterWorld,
+  setAfterRenderHook,
+} from "./canvas.js";
 import { setMode, refreshForSelection, getMode } from "./panel.js";
 import { initJoystick } from "./joystick.js";
 
@@ -35,6 +43,7 @@ const DPAD_STEP_PX = 16;
 export function initControls() {
   document.getElementById("save-btn").addEventListener("click", _saveRoom);
   document.getElementById("reset-btn")?.addEventListener("click", _resetRoom);
+  setAfterRenderHook(_syncRevertEnabled);
 
   document.getElementById("edit-btn").addEventListener("click", () => {
     if (state.selectedId) {
@@ -83,6 +92,23 @@ export function initControls() {
 
 // ---------- Per-instance deform sub-tools (shear / warp) ----------
 
+// Greys out Revert when the current selection hasn't been modified
+// since it entered edit mode (or has no snapshot at all) — nothing
+// to revert. Called from every path that mutates the selected object
+// in edit mode so the button reflects live state.
+function _objectModifiedSinceSnapshot(obj) {
+  return obj ? isObjectModifiedSinceSnapshot(obj.id) : false;
+}
+
+
+export function _syncRevertEnabled() {
+  const btn = document.getElementById("subtool-revert-btn");
+  if (!btn) return;
+  const obj = state.selectedId ? findObject(state.selectedId) : null;
+  btn.disabled = !_objectModifiedSinceSnapshot(obj);
+}
+
+
 function _initSubTools() {
   const shearBtn  = document.getElementById("subtool-shear-btn");
   const warpBtn   = document.getElementById("subtool-warp-btn");
@@ -106,12 +132,18 @@ function _initSubTools() {
     render();
   });
 
-  // Reset: scoped to whichever sub-tool is active. With no sub-tool
-  // active, Reset is a no-op (users who want a full wipe click Revert).
+  // Reset: scoped to whichever sub-tool is active AND also zeros the
+  // rotation so "Reset" feels like a full transform reset rather than
+  // a no-op when no sub-tool is active. Scale and position are left
+  // alone (use Revert for a full-object wipe).
   resetBtn.addEventListener("click", () => {
     const id = state.selectedId;
     const obj = id ? findObject(id) : null;
     if (!obj) return;
+    if (obj.rotation_z !== 0) {
+      obj.rotation_z = 0;
+      markDirty();
+    }
     if (state.editSubTool === "shear" && obj.shear) {
       delete obj.shear;
       markDirty();
@@ -119,23 +151,31 @@ function _initSubTools() {
       delete obj.warp;
       markDirty();
     }
+    _syncSliderFromObject();
+    _syncRevertEnabled();
     render();
   });
 
-  // Revert to original: wipes BOTH shear and warp regardless of which
-  // sub-tool (if any) is active. The image renders straight from the
-  // catalog bytes again.
+  // Revert to original: wipes shear + warp + puts rotation/scale/
+  // adjustments back to the pre-edit snapshot — same thing the tap-
+  // to-switch flow does. Warns before doing it so the user doesn't
+  // lose work by accident.
   revertBtn.addEventListener("click", () => {
     const id = state.selectedId;
     const obj = id ? findObject(id) : null;
     if (!obj) return;
-    if (obj.shear || obj.warp) {
-      delete obj.shear;
-      delete obj.warp;
-      markDirty();
-    }
+    if (!_objectModifiedSinceSnapshot(obj)) return;
+    if (!window.confirm(
+      "Revert all changes? This resets the item back to how it looked " +
+      "when you opened EDIT (or the catalog image if never edited)."
+    )) return;
+    revertObject(id);
+    _syncSliderFromObject();
+    _syncRevertEnabled();
     render();
   });
+
+  _syncRevertEnabled();
 }
 
 
