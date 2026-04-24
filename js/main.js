@@ -219,14 +219,37 @@ function _onNavClick(evt) {
     setMode("empty");
     render();
   } else if (nav === "logout") {
+    _playGoodbyeSplashAndLogout();
+  }
+}
+
+
+async function _playGoodbyeSplashAndLogout() {
+  const splash = document.getElementById("splash-overlay");
+  const textEl = document.getElementById("splash-text");
+  if (!splash || !textEl) {
+    // Safety fallback if the overlay isn't in the DOM for some reason.
     api.logout().finally(() => {
       authToken.clear();
-      // ?from=logout tells the login page to play the splash intro
-      // ("A space you can call your own" typewriter) before showing
-      // the form. Direct visits to login.html skip it.
-      window.location.href = "login.html?from=logout";
+      window.location.href = "login.html";
     });
+    return;
   }
+  const slogan = "Goodbye. This place will always be yours.";
+  splash.hidden = false;
+  // Typewriter.
+  for (let i = 1; i <= slogan.length; i++) {
+    textEl.textContent = slogan.slice(0, i);
+    await new Promise((r) => setTimeout(r, 55));
+  }
+  await new Promise((r) => setTimeout(r, 900));
+  // Fire the server-side logout in parallel with the fade so the user
+  // never waits on the network.
+  api.logout().catch(() => {});
+  authToken.clear();
+  splash.classList.add("closing");
+  await new Promise((r) => setTimeout(r, 500));
+  window.location.href = "login.html";
 }
 
 

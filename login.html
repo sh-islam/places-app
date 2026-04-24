@@ -19,12 +19,12 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body class="login-body">
-  <!-- Splash intro shown when the user arrives from sign-out
-       (?from=logout). Icon 1.5× the normal login size, slogan
-       typewriters in, pause, then splash fades out as the login
-       card fades in. Hidden by default for direct visits. -->
+  <!-- Splash played AFTER a successful sign-in, before we navigate
+       into the app. Hidden by default so direct page loads just show
+       the login card. Shown + animated by login.js on form success. -->
   <div id="splash-overlay" class="splash" hidden>
     <img src="icon.png" alt="" class="splash-icon" />
+    <h1 class="splash-title">Places</h1>
     <p class="splash-slogan"><span id="splash-text"></span><span class="splash-caret">|</span></p>
   </div>
   <main class="login-card">

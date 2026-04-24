@@ -10,25 +10,27 @@ const form = document.getElementById("login-form");
 const errorEl = document.getElementById("login-error");
 
 
-// ---- Splash intro (only when the user just signed out) ----
+// Reveal the login card on first paint — no splash runs at the start.
+document.body.classList.add("login-ready");
+
+
+// ---- Splash played AFTER a successful sign-in ----
 //
-// main.js sends us to login.html?from=logout when the nav-bar power
-// button fires. We play a quick typewriter sequence — enlarged icon +
-// "A space you can call your own" — then fade out as the login card
-// fades in. Direct visits (expired session, bookmark) skip it and
-// reveal the card immediately.
-(async function playSplashIfNeeded() {
-  const params = new URLSearchParams(location.search);
-  const cameFromLogout = params.get("from") === "logout";
-  if (!cameFromLogout) {
-    document.body.classList.add("login-ready");
-    return;
+// Called once the backend accepts the credentials. Enlarged icon +
+// "Places" title + typewriter slogan ("A space you can call your
+// own."), short pause, then fade out while we navigate into the app.
+async function playWelcomeSplash() {
+  const splash = document.getElementById("splash-overlay");
+  const textEl = document.getElementById("splash-text");
+  const card   = document.querySelector(".login-card");
+  const slogan = "A space you can call your own.";
+
+  // Hide the login card entirely + mark it inert so iOS can't re-focus
+  // a password field behind the splash and pop the keyboard back up.
+  if (card) {
+    card.setAttribute("inert", "");
+    card.style.display = "none";
   }
-
-  const splash  = document.getElementById("splash-overlay");
-  const textEl  = document.getElementById("splash-text");
-  const slogan  = "A space you can call your own.";
-
   splash.hidden = false;
 
   // Typewriter: one char every ~55ms so the whole line lands in ~1.6s.
@@ -36,19 +38,10 @@ const errorEl = document.getElementById("login-error");
     textEl.textContent = slogan.slice(0, i);
     await new Promise((r) => setTimeout(r, 55));
   }
-  // Linger on the finished slogan for a beat.
-  await new Promise((r) => setTimeout(r, 1000));
-
-  // Cross-fade: splash fades + shrinks, login card fades in behind it.
+  await new Promise((r) => setTimeout(r, 900));
   splash.classList.add("closing");
-  document.body.classList.add("login-ready");
   await new Promise((r) => setTimeout(r, 500));
-  splash.hidden = true;
-
-  // Clean the ?from=logout from the URL so refreshing the page doesn't
-  // replay the splash (and so it doesn't get pasted into bookmarks).
-  history.replaceState(null, "", location.pathname);
-})();
+}
 
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -76,12 +69,24 @@ form.addEventListener("submit", async (e) => {
     // Belt-and-suspenders: also pass it via URL hash, so even if
     // localStorage gets nuked between pages (some mobile browsers do
     // this unpredictably), index.html's boot can pick it up.
-    if (data.token) {
-      authToken.set(data.token);
-      window.location.href = `index.html#t=${encodeURIComponent(data.token)}`;
-    } else {
-      window.location.href = "index.html";
+    if (data.token) authToken.set(data.token);
+
+    // Dismiss the on-screen keyboard before the welcome splash plays
+    // — blurring the focused input tells iOS / Android to slide it
+    // away, and we also shove focus onto body as a fallback for
+    // browsers that ignore blur alone.
+    if (document.activeElement && document.activeElement.blur) {
+      document.activeElement.blur();
     }
+    document.body.setAttribute("tabindex", "-1");
+    document.body.focus();
+
+    await playWelcomeSplash();
+
+    const next = data.token
+      ? `index.html#t=${encodeURIComponent(data.token)}`
+      : "index.html";
+    window.location.href = next;
   } catch (err) {
     errorEl.textContent = `Network error: ${err.message}`;
     errorEl.hidden = false;

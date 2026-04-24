@@ -152,6 +152,13 @@ input, textarea, [contenteditable] {
      Visually reads as "the icon is landing inside the login card". */
   transform: scale(0.45);
 }
+.splash-title {
+  margin: 0 0 4px;
+  color: #eaeaea;
+  font-size: 24px;
+  letter-spacing: 2px;
+  text-align: center;
+}
 .splash-slogan {
   color: #eaeaea;
   font-size: 12px;
@@ -168,15 +175,6 @@ input, textarea, [contenteditable] {
 }
 @keyframes splash-caret-blink { 50% { opacity: 0; } }
 
-/* Login card starts hidden when the splash is active so it can fade
-   in once the splash closes. JS flips .login-ready to un-hide. */
-.login-body:not(.login-ready) .login-card {
-  opacity: 0;
-  pointer-events: none;
-}
-.login-card {
-  transition: opacity 500ms ease;
-}
 .login-card {
   width: 320px;
   background: #232730;
@@ -195,8 +193,8 @@ input, textarea, [contenteditable] {
 @media (max-width: 420px) {
   .login-icon { width: 180px; height: 180px; }
 }
-.login-card h1 { margin: 0 0 8px 0; font-size: 28px; letter-spacing: 2px; text-align: center; }
-.login-card > .muted { text-align: center; margin: 0 0 22px; }
+.login-card h1 { margin: 0 0 6px 0; font-size: 28px; letter-spacing: 2px; text-align: center; }
+.login-card > .muted { text-align: center; margin: 0 0 10px; }
 .login-form label { text-align: left; } /* re-align form labels only */
 .login-icon { display: block; width: 240px; height: 240px; margin: 0 auto 12px; object-fit: contain; }
 
@@ -234,7 +232,7 @@ input, textarea, [contenteditable] {
 .bg-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
-.login-form { display: flex; flex-direction: column; gap: 16px; margin-top: 4px; }
+.login-form { display: flex; flex-direction: column; gap: 14px; margin-top: 0; }
 .login-form label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
 .login-form button {
   padding: 10px;
