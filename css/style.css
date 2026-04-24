@@ -1548,6 +1548,17 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   background: transparent;
   text-decoration: line-through;
 }
+
+/* Animated GIFs can't carry per-instance shear / warp (the canvas
+   fallback flattens to frame 0) and the advanced editor overwrites
+   as a static PNG — which the backend refuses on .gif targets.
+   Hide those affordances entirely when the current selection is a
+   .gif so users don't hit dead-end buttons. */
+body.sel-is-gif #subtool-shear-btn,
+body.sel-is-gif #subtool-warp-btn,
+body.sel-is-gif #advanced-btn {
+  display: none;
+}
 .btn-pill.primary {
   background: var(--accent);
   border-color: var(--accent);

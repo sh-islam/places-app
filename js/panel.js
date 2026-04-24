@@ -51,4 +51,11 @@ function _refreshSelectedView() {
     visBtn.textContent = "👁";
     visBtn.classList.toggle("eye-closed", !!obj.hidden);
   }
+  // Mark the body when the selection is an animated GIF so CSS can
+  // hide tools that would flatten the animation (Shear / Warp fall
+  // back to canvas = frame 0; Advanced editor overwrites as PNG and
+  // the backend refuses .gif targets anyway).
+  const isGif = typeof obj.url === "string"
+    && obj.url.toLowerCase().endsWith(".gif");
+  document.body.classList.toggle("sel-is-gif", isGif);
 }
