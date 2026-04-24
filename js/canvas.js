@@ -147,6 +147,9 @@ function _screenToWorld(sx, sy) {
 
 export function render() {
   if (!ctx) return;
+  // The advanced-edit image editor commandeers #room-canvas to show the
+  // edit preview + tool overlays. Skip the scene draw so we don't wipe it.
+  if (getMode() === "advanced-edit") return;
   const rect = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -157,6 +160,15 @@ export function render() {
   for (const obj of objectsByLayerAsc()) {
     _drawObject(obj);
   }
+}
+
+
+// Clear the cached alpha-mask + content bbox for a catalog URL. Call
+// after /api/catalog/overwrite so the next render uses the fresh image's
+// mask for hit-testing (otherwise old erased regions would still seem
+// "hit-solid").
+export function invalidateAlphaCache(url) {
+  _alphaCache.delete(url);
 }
 
 

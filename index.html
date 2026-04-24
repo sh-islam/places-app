@@ -166,6 +166,7 @@
             <button data-action="delete" class="btn-icon danger" title="Delete">🗑</button>
             <button id="undo-btn" data-action="undo" class="btn-icon" title="Undo edits (revert to last saved)">↶</button>
             <button id="palette-btn" class="btn-icon" title="Color palette">🎨</button>
+            <button id="advanced-btn" class="btn-icon admin-only" title="Advanced edit (erase, crop, shear, warp)">🛠️</button>
           </div>
           <button id="done-btn" class="btn-pill primary">DONE</button>
         </div>
@@ -201,6 +202,30 @@
             <input id="adj-contrast" type="range" min="0" max="200" step="1" value="100" data-adj="contrast"/>
             <span id="adj-contrast-readout" class="muted small">100%</span>
           </div>
+        </div>
+      </div>
+
+      <!-- Advanced-edit mode: admin-only image editor that overwrites the
+           catalog file in place. Tools (erase / crop / shear / warp) all
+           work on an off-screen canvas at full source resolution; the
+           scene canvas is commandeered for a centered preview with tool
+           overlays on top. Revert restores to the last saved version;
+           Save Image pushes the bytes to the server. -->
+      <div data-mode="advanced-edit" class="mode">
+        <header class="adv-header">
+          <button id="adv-back-btn" class="btn-icon" title="Back to edit">◀</button>
+          <h2 class="adv-title">Advanced</h2>
+          <button id="adv-revert-btn" class="btn-icon" title="Revert to last saved">↶</button>
+        </header>
+        <div class="adv-tools">
+          <button class="adv-tool-btn" data-tool="erase">Erase</button>
+          <button class="adv-tool-btn" data-tool="crop">Crop</button>
+          <button class="adv-tool-btn" data-tool="shear">Shear</button>
+          <button class="adv-tool-btn" data-tool="perspective">Warp</button>
+        </div>
+        <div id="adv-tool-controls" class="adv-tool-controls"></div>
+        <div class="action-row adv-actions">
+          <button id="adv-save-btn" class="btn-pill" disabled>Save Image</button>
         </div>
       </div>
 

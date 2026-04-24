@@ -200,13 +200,24 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   justify-content: center;
   /* Professional halo: a fixed-size ellipse centred on the phone frame
      (independent of viewport size) so the glow reads as "emanating from
-     the app", not "entire page tinted". Near-black everywhere else. */
+     the app", not "entire page tinted". Near-black everywhere else.
+     --halo-mid-stop is driven by the intro-pulse animation on desktop so
+     the gradient breathes for the first few seconds after boot. */
   background:
     radial-gradient(ellipse 900px 700px at center,
       var(--body-bg-core) 0%,
-      var(--body-bg-mid)  55%,
+      var(--body-bg-mid)  var(--halo-mid-stop, 55%),
       var(--body-bg-far)  100%),
     var(--body-bg-far);
+}
+
+/* Register --halo-mid-stop so keyframes can interpolate between
+   percentages smoothly (plain CSS-var animation doesn't interpolate,
+   it steps). */
+@property --halo-mid-stop {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 55%;
 }
 
 .phone-frame {
@@ -221,12 +232,39 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   position: relative;
   overflow: hidden;
 }
+
+/* Tablet/desktop polish — only kicks in at ≥768px so the mobile layout
+   we've tuned stays exactly as it is. The phone frame hugs the screen
+   height so there's barely any dead space above/below, and width scales
+   with height via a 9:19 ratio (capped so it never gets comically wide). */
 @media (min-width: 500px) {
   .phone-frame {
     height: min(900px, 100vh);
     border-radius: 28px;
     box-shadow: 0 20px 80px rgba(0,0,0,0.6);
     border: 6px solid var(--frame-border);
+  }
+}
+@media (min-width: 768px) {
+  .phone-frame {
+    height: calc(100dvh - 20px);
+    max-height: 1100px;
+    width: calc((100dvh - 20px) * 9 / 19);
+    max-width: 600px;
+    min-width: 440px;
+    border-radius: 36px;
+  }
+
+  /* 10s glow pulse on first boot. Adds a class to body via main.js. */
+  .app-body.intro-pulse {
+    animation: intro-halo-pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes intro-halo-pulse {
+    0%, 100% { --halo-mid-stop: 55%; }
+    50%      { --halo-mid-stop: 78%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .app-body.intro-pulse { animation: none; }
   }
 }
 
@@ -1236,7 +1274,145 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
    the pulse. */
 @media (prefers-reduced-motion: reduce) {
   .btn-pill.unsaved,
-  #sel-move-btn:not(:disabled) { animation: none; }
+  #sel-move-btn:not(:disabled),
+  #adv-save-btn:not(:disabled) { animation: none; }
+}
+
+/* ---------- Advanced-edit mode (admin image editor) ----------
+   Tool-bar layout + overlays drawn on top of the scene canvas while
+   the bottom panel hosts the tool controls. */
+.adv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.adv-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.adv-tools {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.adv-tool-btn {
+  flex: 1;
+  padding: 8px 4px;
+  background: var(--btn-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+}
+.adv-tool-btn:hover { background: var(--btn-hover); }
+.adv-tool-btn.active {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.adv-tool-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+}
+.adv-tool-controls:empty { display: none; }
+.adv-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+.adv-slider-row label { min-width: 56px; color: var(--text-muted); }
+.adv-slider-row input[type="range"] { flex: 1; min-width: 0; }
+.adv-slider-row output { min-width: 44px; text-align: right; color: var(--text); }
+.adv-actions { justify-content: flex-end; }
+#adv-save-btn:not(:disabled) {
+  background: #c0392b;
+  border-color: #c0392b;
+  color: white;
+  animation: blink-red 1.1s ease-in-out infinite;
+}
+#adv-save-btn:not(:disabled):hover { background: #a93226; }
+
+/* Overlay element that sits on top of the scene canvas while editing.
+   Tools parent their handles/cursors into this. Ignores pointer events
+   until a tool takes over. */
+.adv-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+}
+
+/* Erase brush ghost cursor (follows the pointer) */
+.adv-erase-cursor {
+  position: absolute;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  background: rgba(255, 255, 255, 0.08);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+.adv-erase-cursor.square { border-radius: 2px; }
+.adv-erase-cursor.circle { border-radius: 50%; }
+
+/* Crop handles + rectangle */
+.adv-crop-rect {
+  position: absolute;
+  border: 1.5px dashed rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+  cursor: move;
+}
+.adv-crop-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 1.5px solid var(--accent);
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+}
+
+/* Perspective handles: four draggable circles at the quad's corners */
+.adv-persp-handle {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+}
+.adv-persp-handle:active { cursor: grabbing; }
+.adv-persp-svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.adv-persp-svg line {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+/* Shape toggle chip group re-uses .chip styling */
+.adv-shape-toggle { display: flex; gap: 6px; }
+.adv-apply-row {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .btn-icon {

@@ -13,6 +13,7 @@ import { initInventory } from "./inventory.js";
 import { initSettings, applyStoredTheme } from "./settings.js";
 import { setMode, refreshForSelection } from "./panel.js";
 import { initRecategorize } from "./recategorize.js";
+import { initAdvancedEdit } from "./advanced_edit.js";
 
 
 async function boot() {
@@ -131,6 +132,7 @@ async function boot() {
 
   initControls();
   initRecategorize();
+  initAdvancedEdit();
 
   // Bottom nav: home is just "close any drawer", logout submits the hidden form.
   document.querySelector(".bottom-nav")
@@ -173,6 +175,14 @@ async function boot() {
 
   setMode("empty");
   render();
+
+  // Desktop-only 10-second intro glow pulse. Mobile (<768px) is
+  // untouched — its layout is final and we explicitly don't want any
+  // boot-time animation competing with the phone-frame itself.
+  if (window.matchMedia("(min-width: 768px)").matches) {
+    document.body.classList.add("intro-pulse");
+    setTimeout(() => document.body.classList.remove("intro-pulse"), 10000);
+  }
 }
 
 

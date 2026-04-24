@@ -89,6 +89,11 @@ export const api = {
       new_category: newCategory,
       new_subcategory: newSubcategory,
     }),
+  overwriteCatalogItem: (itemUrl, imageBase64) =>
+    postJson("/api/catalog/overwrite", {
+      url: itemUrl,
+      image_base64: imageBase64,
+    }),
 
   uploadCatalogItem: async ({ image, category, subcategory, name, overwrite }) => {
     const fd = new FormData();
