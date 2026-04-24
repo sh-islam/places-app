@@ -41,6 +41,23 @@ export function addObject(obj) {
   markDirty();
 }
 
+// Duplicate an existing object: same URL / scale / shear / adjustments /
+// etc., new id, placed at a world point the caller chooses (usually
+// canvas centre), and promoted to the top layer. The original stays
+// put; the duplicate becomes the selected item.
+export function duplicateObject(id, x, y) {
+  const src = findObject(id);
+  if (!src) return null;
+  const copy = JSON.parse(JSON.stringify(src));
+  copy.id = nextId();
+  copy.position = { x, y };
+  copy.layer = topLayer();
+  state.room.objects.push(copy);
+  state.selectedId = copy.id;
+  markDirty();
+  return copy;
+}
+
 export function findObject(id) {
   return state.room.objects.find((o) => o.id === id) || null;
 }

@@ -6,6 +6,7 @@ import {
   clearSnapshot,
   confirmRemoveObject,
   DEFAULT_ADJUSTMENTS,
+  duplicateObject,
   findObject,
   flipHorizontal,
   flipVertical,
@@ -20,7 +21,7 @@ import {
   snapshotObject,
 } from "./objects.js";
 import { api } from "./api.js";
-import { render, zoomIn, zoomOut, resetView } from "./canvas.js";
+import { render, zoomIn, zoomOut, resetView, getCanvasCenterWorld } from "./canvas.js";
 import { setMode, refreshForSelection, getMode } from "./panel.js";
 import { initJoystick } from "./joystick.js";
 
@@ -40,6 +41,15 @@ export function initControls() {
       snapshotObject(state.selectedId);
       _syncSliderFromObject();
       setMode("edit");
+    }
+  });
+  document.getElementById("duplicate-btn")?.addEventListener("click", () => {
+    if (!state.selectedId) return;
+    const { x, y } = getCanvasCenterWorld();
+    const copy = duplicateObject(state.selectedId, x, y);
+    if (copy) {
+      refreshForSelection();
+      render();
     }
   });
   document.getElementById("done-btn").addEventListener("click", () => {
