@@ -77,7 +77,21 @@ async function _loadRooms() {
   state.activeIndex = data.active_index;
   syncActiveRoom();
   normalizeLayers();
-  _migrateToWorldCoords();
+  const migrated = _migrateToWorldCoords();
+  if (migrated) {
+    // Persist the migration immediately so other devices don't re-run
+    // their own migration (and race into a different result). Best-
+    // effort — if the save fails the next manual SAVE click still fixes
+    // it.
+    try {
+      for (let i = 0; i < state.rooms.length; i++) {
+        await api.saveRoom(i, state.rooms[i]);
+      }
+      markClean();
+    } catch (e) {
+      console.warn("auto-save after world-coord migration failed", e);
+    }
+  }
 }
 
 
@@ -90,37 +104,38 @@ async function _loadRooms() {
 // migrated flag prevents re-migration after a save.
 function _migrateToWorldCoords() {
   const NEW_WORLD = 1000;
+  // Deterministic factor: any two devices migrating the same room data
+  // agree on the result. 2.5× maps a legacy ~400-px-wide canvas into
+  // the new 1000-unit world; close enough that items land roughly where
+  // they were, and user can nudge the rest.
+  const FACTOR = 2.5;
+  let anyMigrated = false;
   for (const room of state.rooms || []) {
     if (room.coords_migrated) continue;
     const objs = room.objects || [];
-    if (objs.length === 0) { room.coords_migrated = true; continue; }
+    if (objs.length === 0) { room.coords_migrated = true; anyMigrated = true; continue; }
     let maxAbs = 0;
     for (const o of objs) {
       if (!o.position) continue;
       maxAbs = Math.max(maxAbs, Math.abs(o.position.x || 0),
                                 Math.abs(o.position.y || 0));
     }
-    if (maxAbs > 600) { room.coords_migrated = true; continue; }
-    // Heuristic scale: assume the old canvas was ~ maxAbs*2 (roughly
-    // doubled, since items tend to cluster near centre). Fall back to
-    // 400 (typical mobile canvas) if the room's contents don't give us
-    // enough signal.
-    const assumedOldCanvas = Math.max(400, maxAbs * 2);
-    const factor = NEW_WORLD / assumedOldCanvas;
+    // Already in world units? Just flag and skip.
+    if (maxAbs > 600) { room.coords_migrated = true; anyMigrated = true; continue; }
     for (const o of objs) {
       if (o.position) {
-        o.position.x = (o.position.x || 0) * factor;
-        o.position.y = (o.position.y || 0) * factor;
+        o.position.x = (o.position.x || 0) * FACTOR;
+        o.position.y = (o.position.y || 0) * FACTOR;
       }
       if (o.scale) {
-        o.scale.x = (o.scale.x || 1) * factor;
-        o.scale.y = (o.scale.y || 1) * factor;
+        o.scale.x = (o.scale.x || 1) * FACTOR;
+        o.scale.y = (o.scale.y || 1) * FACTOR;
       }
     }
     room.coords_migrated = true;
-    // markDirty so the next save persists the migration.
-    state.dirty = true;
+    anyMigrated = true;
   }
+  return anyMigrated;
 }
 
 
