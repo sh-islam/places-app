@@ -297,6 +297,13 @@
       <div class="drawer-handle"></div>
       <header class="drawer-header">
         <h2>Catalog</h2>
+        <!-- Sort controls: pick mode (A / 🕒) + direction (↓/↑). Default
+             is name ascending. Lives right before the close button. -->
+        <div class="catalog-sort">
+          <button id="catalog-sort-name" class="btn-icon active" title="Sort by name">A</button>
+          <button id="catalog-sort-time" class="btn-icon" title="Sort by time added">🕒</button>
+          <button id="catalog-sort-dir"  class="btn-icon" title="Ascending (click to flip)">↓</button>
+        </div>
         <button id="catalog-close" class="btn-icon" title="Close">✕</button>
       </header>
       <div class="drawer-filters">

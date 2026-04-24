@@ -14,6 +14,12 @@ let searchEl = null;
 let categoryEl = null;
 let subcategoryEl = null;
 
+// Sort state. Persists across catalog re-renders in this session.
+// "name" = alphabetical by item.name; "time" = by file mtime (newest
+// uploads/edits either first or last depending on direction).
+let _sortMode = "name";   // "name" | "time"
+let _sortDir  = "asc";    // "asc" | "desc" (↓ / ↑)
+
 
 export function initCatalog(els) {
   listEl = els.list;
@@ -31,7 +37,57 @@ export function initCatalog(els) {
   });
   subcategoryEl.addEventListener("change", renderCatalog);
 
+  // Sort controls (in the drawer header). Clicking a mode button picks
+  // that mode; the direction button toggles ↓ (asc) / ↑ (desc).
+  document.getElementById("catalog-sort-name")
+    ?.addEventListener("click", () => _setSortMode("name"));
+  document.getElementById("catalog-sort-time")
+    ?.addEventListener("click", () => _setSortMode("time"));
+  document.getElementById("catalog-sort-dir")
+    ?.addEventListener("click", _toggleSortDir);
+  _syncSortButtons();
+
   renderCatalog();
+}
+
+
+function _setSortMode(mode) {
+  _sortMode = mode;
+  _syncSortButtons();
+  renderCatalog();
+}
+
+
+function _toggleSortDir() {
+  _sortDir = _sortDir === "asc" ? "desc" : "asc";
+  _syncSortButtons();
+  renderCatalog();
+}
+
+
+function _syncSortButtons() {
+  const nameBtn = document.getElementById("catalog-sort-name");
+  const timeBtn = document.getElementById("catalog-sort-time");
+  const dirBtn  = document.getElementById("catalog-sort-dir");
+  if (nameBtn) nameBtn.classList.toggle("active", _sortMode === "name");
+  if (timeBtn) timeBtn.classList.toggle("active", _sortMode === "time");
+  if (dirBtn) {
+    dirBtn.textContent = _sortDir === "asc" ? "↓" : "↑";
+    dirBtn.title = _sortDir === "asc"
+      ? "Ascending (A→Z / oldest→newest). Click to flip."
+      : "Descending (Z→A / newest→oldest). Click to flip.";
+  }
+}
+
+
+function _sortItems(items) {
+  const sign = _sortDir === "asc" ? 1 : -1;
+  return items.slice().sort((a, b) => {
+    if (_sortMode === "time") {
+      return sign * ((a.mtime || 0) - (b.mtime || 0));
+    }
+    return sign * a.name.localeCompare(b.name);
+  });
 }
 
 
@@ -79,9 +135,10 @@ export function renderCatalog() {
   const filtered = state.catalog.filter((item) =>
     _matches(item, query, category, subcategory)
   );
+  const sorted = _sortItems(filtered);
 
   listEl.innerHTML = "";
-  for (const item of filtered) {
+  for (const item of sorted) {
     listEl.appendChild(_buildItemCard(item));
   }
 }

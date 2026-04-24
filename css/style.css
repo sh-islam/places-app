@@ -1576,6 +1576,28 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 .nav-btn:hover, .nav-btn.active { color: var(--text); }
 
+/* Catalog sort cluster — three small icon buttons sitting in the
+   drawer header between the title and the close button. Mode buttons
+   (name / time) share an active-when-selected highlight; direction is
+   a separate toggle whose glyph swaps between ↓ (asc) and ↑ (desc). */
+.catalog-sort {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 6px;
+}
+.catalog-sort .btn-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 14px;
+  border-width: 1px;
+}
+.catalog-sort .btn-icon.active {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* ---------- Catalog drawer ---------- */
 
 .drawer {
