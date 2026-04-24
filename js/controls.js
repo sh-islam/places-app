@@ -1,6 +1,6 @@
 // Wires up panel buttons + joystick + free-rotate slider.
 
-import { state, markClean } from "./state.js";
+import { state, markClean, markDirty } from "./state.js";
 import {
   bringForward,
   clearSnapshot,
@@ -43,6 +43,13 @@ export function initControls() {
   });
   document.getElementById("done-btn").addEventListener("click", () => {
     if (state.selectedId) clearSnapshot(state.selectedId);
+    // Exiting edit mode also deactivates any sub-tool so the handle
+    // overlay doesn't linger on the scene.
+    state.editSubTool = null;
+    const shearBtn = document.getElementById("subtool-shear-btn");
+    const warpBtn  = document.getElementById("subtool-warp-btn");
+    if (shearBtn) shearBtn.classList.remove("active");
+    if (warpBtn)  warpBtn.classList.remove("active");
     setMode("selected");
   });
 
@@ -53,7 +60,45 @@ export function initControls() {
   _initPalette();
   _initZoomButtons();
   _initRenameButton();
+  _initSubTools();
   setInterval(_updateSaveLabel, 400);
+}
+
+
+// ---------- Per-instance deform sub-tools (shear / warp) ----------
+
+function _initSubTools() {
+  const shearBtn = document.getElementById("subtool-shear-btn");
+  const warpBtn  = document.getElementById("subtool-warp-btn");
+  const resetBtn = document.getElementById("subtool-reset-btn");
+  if (!shearBtn || !warpBtn || !resetBtn) return;
+
+  function sync() {
+    shearBtn.classList.toggle("active", state.editSubTool === "shear");
+    warpBtn.classList.toggle("active",  state.editSubTool === "warp");
+  }
+
+  shearBtn.addEventListener("click", () => {
+    state.editSubTool = state.editSubTool === "shear" ? null : "shear";
+    sync();
+    render();
+  });
+  warpBtn.addEventListener("click", () => {
+    state.editSubTool = state.editSubTool === "warp" ? null : "warp";
+    sync();
+    render();
+  });
+  resetBtn.addEventListener("click", () => {
+    const id = state.selectedId;
+    const obj = id ? findObject(id) : null;
+    if (!obj) return;
+    if (obj.shear || obj.warp) {
+      delete obj.shear;
+      delete obj.warp;
+      markDirty();
+    }
+    render();
+  });
 }
 
 

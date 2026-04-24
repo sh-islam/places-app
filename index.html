@@ -167,6 +167,17 @@
           </div>
         </div>
 
+        <!-- Per-instance deform tools. Clicking toggles a sub-tool that
+             draws handles directly on the live room canvas over the
+             selected item; drags mutate obj.shear / obj.warp, which the
+             renderer applies (shear via ctx.transform, warp via a
+             cached warped bitmap). No server image overwrite, no
+             per-user image copies — pure JSON instructions. -->
+        <div class="subtool-row">
+          <button id="subtool-shear-btn" class="btn-pill" type="button">Shear</button>
+          <button id="subtool-warp-btn"  class="btn-pill" type="button">Warp</button>
+          <button id="subtool-reset-btn" class="btn-pill" type="button" title="Reset shear / warp on this item">Reset</button>
+        </div>
         <div class="rotate-row">
           <label class="muted small" for="rotate-slider">Rotate</label>
           <input id="rotate-slider" type="range" min="0" max="360" step="1" value="0" />

@@ -11,6 +11,7 @@
 import { state } from "./state.js";
 import { api } from "./api.js";
 import { findObject } from "./objects.js";
+import { computeHomography as _computeHomography, invert3x3 as _invert3x3 } from "./homography.js";
 import { loadImage } from "./images.js";
 import { assetUrl } from "./config.js";
 
@@ -1152,64 +1153,5 @@ function _makePerspectiveTool() {
 }
 
 
-// ---- Perspective math ----
-
-// Direct Linear Transform: given 4 source points + 4 dest points, returns
-// the 9-element row-major 3×3 homography H that maps src_i -> dst_i.
-// Sets H[8] = 1 and solves the remaining 8 unknowns with plain Gaussian
-// elimination.
-function _computeHomography(src, dst) {
-  const A = []; // 8 rows × 8 cols
-  const b = []; // 8-vector
-  for (let i = 0; i < 4; i++) {
-    const [x, y] = src[i];
-    const [u, v] = dst[i];
-    A.push([  x,  y,  1,  0,  0,  0, -x * u, -y * u ]);
-    b.push(u);
-    A.push([  0,  0,  0,  x,  y,  1, -x * v, -y * v ]);
-    b.push(v);
-  }
-  const sol = _solveLinear(A, b);
-  if (!sol) return null;
-  return [sol[0], sol[1], sol[2], sol[3], sol[4], sol[5], sol[6], sol[7], 1];
-}
-
-
-function _solveLinear(Ain, bin) {
-  const n = Ain.length;
-  const A = Ain.map((r) => r.slice());
-  const b = bin.slice();
-  for (let i = 0; i < n; i++) {
-    let maxRow = i;
-    for (let k = i + 1; k < n; k++) {
-      if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
-    }
-    if (Math.abs(A[maxRow][i]) < 1e-10) return null;
-    [A[i], A[maxRow]] = [A[maxRow], A[i]];
-    [b[i], b[maxRow]] = [b[maxRow], b[i]];
-    for (let k = i + 1; k < n; k++) {
-      const f = A[k][i] / A[i][i];
-      for (let j = i; j < n; j++) A[k][j] -= f * A[i][j];
-      b[k] -= f * b[i];
-    }
-  }
-  const x = new Array(n);
-  for (let i = n - 1; i >= 0; i--) {
-    let s = b[i];
-    for (let j = i + 1; j < n; j++) s -= A[i][j] * x[j];
-    x[i] = s / A[i][i];
-  }
-  return x;
-}
-
-
-function _invert3x3(m) {
-  const [a, b, c, d, e, f, g, h, i] = m;
-  const det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g);
-  if (Math.abs(det) < 1e-10) return null;
-  return [
-    (e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det,
-    (f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det,
-    (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det,
-  ];
-}
+// Homography math lives in ./homography.js — shared with canvas.js's
+// per-object warp rendering so we have one source of truth.

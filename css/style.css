@@ -1576,6 +1576,25 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 .nav-btn:hover, .nav-btn.active { color: var(--text); }
 
+/* Shear / Warp / Reset row inside edit mode (above the rotate slider).
+   Compact buttons; the active sub-tool highlights the same way tool
+   chips do elsewhere. */
+.subtool-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+.subtool-row .btn-pill {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.subtool-row .btn-pill.active {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
 /* Catalog sort cluster — three small icon buttons sitting in the
    drawer header between the title and the close button. Mode buttons
    (name / time) share an active-when-selected highlight; direction is

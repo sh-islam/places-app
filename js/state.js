@@ -25,6 +25,10 @@ export const state = {
   // entering edit mode. Toggled via the lock button in the home tools.
   // Default false so existing behaviour (edit-mode-required) is the norm.
   itemsUnlocked: false,
+  // Inside edit mode, an optional sub-tool can be active: "shear" or
+  // "warp". When set, the canvas draws handles on the selected item
+  // and pointer events on those handles drive obj.shear / obj.warp.
+  editSubTool: null,
 };
 
 // Point `state.room` at the currently-active entry. Call whenever `rooms` or

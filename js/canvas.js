@@ -1,6 +1,6 @@
 // Canvas rendering, hit-testing, and pointer interaction.
 
-import { state } from "./state.js";
+import { state, markDirty } from "./state.js";
 import { getCachedImage, loadImage } from "./images.js";
 import {
   addObject,
@@ -12,6 +12,7 @@ import {
 } from "./objects.js";
 import { getMode, refreshForSelection, setMode } from "./panel.js";
 import { nextRoom, prevRoom } from "./rooms.js";
+import { warpImage } from "./homography.js";
 
 
 let canvas = null;
@@ -21,6 +22,7 @@ let ctx = null;
 let drag = null;          // { id, offsetX, offsetY, moved }
 let pan = null;           // { startClientX, startClientY, startPanX, startPanY }
 let swipe = null;         // { startX, startY } for room-switching swipe (touch)
+let subDrag = null;       // { handleId, obj, startShear, startWarp, startWorld }
 const DRAG_THRESHOLD = 4; // px before we count it as a drag
 // New items are normalized so they render with the same visual *area* —
 // target × target square pixels, regardless of aspect ratio. A wide-short
@@ -160,6 +162,175 @@ export function render() {
   for (const obj of objectsByLayerAsc()) {
     _drawObject(obj);
   }
+  // Sub-tool handles for the selected item (shear / warp).
+  if (state.editSubTool && state.selectedId) {
+    const sel = findObject(state.selectedId);
+    if (sel) _drawSubToolOverlay(sel);
+  }
+}
+
+
+// ---- Sub-tool overlay drawing (shear / warp handles) ----
+function _drawSubToolOverlay(obj) {
+  const img = getCachedImage(obj.url);
+  if (!img) return;
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  // Drawn in SCREEN space so handles stay constant size regardless of
+  // object scale or scene zoom. We save + reset to CSS-px transform,
+  // draw, then restore.
+  ctx.save();
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  if (state.editSubTool === "shear") {
+    const nw = _worldToScreen(_objLocalToWorld(obj, -w / 2, -h / 2));
+    const ne = _worldToScreen(_objLocalToWorld(obj,  w / 2, -h / 2));
+    const se = _worldToScreen(_objLocalToWorld(obj,  w / 2,  h / 2));
+    const sw = _worldToScreen(_objLocalToWorld(obj, -w / 2,  h / 2));
+    const topMid   = _worldToScreen(_objLocalToWorld(obj, 0, -h / 2));
+    const rightMid = _worldToScreen(_objLocalToWorld(obj,  w / 2, 0));
+    _drawDashedQuad([nw, ne, se, sw]);
+    _drawHandle(topMid);
+    _drawHandle(rightMid);
+  } else if (state.editSubTool === "warp") {
+    const corners = obj.warp?.corners || [[0, 0], [w, 0], [w, h], [0, h]];
+    const pts = corners.map(([cx, cy]) =>
+      _worldToScreen(_objLocalToWorld(obj, cx - w / 2, cy - h / 2)));
+    _drawDashedQuad(pts);
+    for (const p of pts) _drawHandle(p);
+  }
+
+  ctx.restore();
+}
+
+
+function _objLocalToWorld(obj, lx, ly) {
+  // Transform order matches _drawObject: scale → shear → rotate → translate.
+  let x = lx * (obj.scale?.x || 1);
+  let y = ly * (obj.scale?.y || 1);
+  const sh = obj.shear;
+  if (sh && (sh.kx || sh.ky)) {
+    const nx = x + (sh.kx || 0) * y;
+    const ny = (sh.ky || 0) * x + y;
+    x = nx; y = ny;
+  }
+  const theta = (obj.rotation_z || 0) * Math.PI / 180;
+  const c = Math.cos(theta), s = Math.sin(theta);
+  return {
+    x: obj.position.x + x * c - y * s,
+    y: obj.position.y + x * s + y * c,
+  };
+}
+
+
+function _worldToScreen(p) {
+  const v = state.view;
+  return { x: p.x * v.zoom + v.panX, y: p.y * v.zoom + v.panY };
+}
+
+
+function _drawHandle(p) {
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+  ctx.strokeStyle = "#3a7afe";
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+}
+
+
+function _drawDashedQuad(pts) {
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = "#3a7afe";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+
+function _updateSubDrag(world) {
+  const obj = subDrag.obj;
+  const img = getCachedImage(obj.url);
+  if (!img) return;
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+
+  // World drag delta → object-local delta (inverse-rotate only; scale
+  // isn't inverted here since we convert to image pixels below).
+  const dw = { x: world.x - subDrag.startWorld.x, y: world.y - subDrag.startWorld.y };
+  const theta = -(obj.rotation_z || 0) * Math.PI / 180;
+  const cos = Math.cos(theta), sin = Math.sin(theta);
+  const dLocal = { x: dw.x * cos - dw.y * sin, y: dw.x * sin + dw.y * cos };
+  const sx = obj.scale?.x || 1;
+  const sy = obj.scale?.y || 1;
+  const dImage = { x: dLocal.x / sx, y: dLocal.y / sy };
+
+  if (state.editSubTool === "shear") {
+    if (subDrag.handleId === "shear-top") {
+      // Top-middle image-local (0, -h/2). Shear sends it to (kx*-h/2, -h/2).
+      // Drag's horizontal image-pixel delta dImage.x is how much the handle
+      // should shift in x. Solve for new kx: -new*h/2 = -old*h/2 + dImage.x
+      // ⇒ new = old - 2*dImage.x/h.
+      obj.shear = {
+        kx: subDrag.startShear.kx - (2 * dImage.x) / h,
+        ky: subDrag.startShear.ky,
+      };
+    } else if (subDrag.handleId === "shear-right") {
+      // Right-middle (w/2, 0) → (w/2, ky*w/2). New ky = old + 2*dImage.y/w.
+      obj.shear = {
+        kx: subDrag.startShear.kx,
+        ky: subDrag.startShear.ky + (2 * dImage.y) / w,
+      };
+    }
+    markDirty();
+  } else if (state.editSubTool === "warp") {
+    const idx = Number(subDrag.handleId.split("-")[1]);
+    const start = subDrag.startWarp?.corners
+      || [[0, 0], [w, 0], [w, h], [0, h]];
+    const newCorners = start.map((c, i) =>
+      i === idx ? [c[0] + dImage.x, c[1] + dImage.y] : [c[0], c[1]]
+    );
+    obj.warp = { corners: newCorners };
+    // The warp cache keys on obj.id and compares signatures — old
+    // entries for THIS obj get overwritten automatically in
+    // _getWarpedCanvas on the next render. No explicit eviction needed.
+    markDirty();
+  }
+}
+
+
+function _hitHandle(obj, screenX, screenY) {
+  const img = getCachedImage(obj.url);
+  if (!img) return null;
+  const w = img.naturalWidth;
+  const h = img.naturalHeight;
+  const hitRadius = 14;
+  const tests = [];
+  if (state.editSubTool === "shear") {
+    tests.push({ id: "shear-top",   p: _worldToScreen(_objLocalToWorld(obj, 0, -h / 2)) });
+    tests.push({ id: "shear-right", p: _worldToScreen(_objLocalToWorld(obj, w / 2, 0)) });
+  } else if (state.editSubTool === "warp") {
+    const corners = obj.warp?.corners || [[0, 0], [w, 0], [w, h], [0, h]];
+    corners.forEach(([cx, cy], i) => {
+      tests.push({
+        id: "warp-" + i,
+        p: _worldToScreen(_objLocalToWorld(obj, cx - w / 2, cy - h / 2)),
+      });
+    });
+  }
+  for (const { id, p } of tests) {
+    const dx = screenX - p.x;
+    const dy = screenY - p.y;
+    if (dx * dx + dy * dy <= hitRadius * hitRadius) return id;
+  }
+  return null;
 }
 
 
@@ -200,15 +371,61 @@ function _drawObject(obj) {
     _drawPlaceholderBox(obj);
     return;
   }
-  const w = img.naturalWidth;
-  const h = img.naturalHeight;
+  // Per-instance perspective warp: when obj.warp.corners is set, we
+  // render a pre-computed warped bitmap (cached per-corner-set) in
+  // place of the source image. The bitmap's dimensions = quad bbox,
+  // so centring its own (w, h) keeps the warp visually anchored on
+  // obj.position regardless of how far corners were dragged.
+  const warped = obj.warp ? _getWarpedCanvas(obj, img) : null;
+  const source = warped ? warped.canvas : img;
+  const w = source.naturalWidth || source.width;
+  const h = source.naturalHeight || source.height;
+
   ctx.save();
   ctx.filter = filterStringFor(obj);
   ctx.translate(obj.position.x, obj.position.y);
   ctx.rotate((obj.rotation_z * Math.PI) / 180);
   ctx.scale(obj.scale.x, obj.scale.y);
-  ctx.drawImage(img, -w / 2, -h / 2, w, h);
+
+  // Per-instance shear. kx/ky are tan values (small number, typically
+  // in [-1, 1]). Canvas 2D transform matrix (a,b,c,d,e,f) where
+  //   x' = a*x + c*y + e;  y' = b*x + d*y + f.
+  // We want x' = x + kx*y, y' = ky*x + y, so (1, ky, kx, 1, 0, 0).
+  const sh = obj.shear;
+  if (sh && (sh.kx || sh.ky)) {
+    ctx.transform(1, sh.ky || 0, sh.kx || 0, 1, 0, 0);
+  }
+
+  ctx.drawImage(source, -w / 2, -h / 2, w, h);
   ctx.restore();
+}
+
+
+// ---- Per-object perspective-warp bitmap cache ----
+// Key = obj.id. Value = { url, sig, result } where sig is a
+// rounded-corner signature so sub-pixel jitter doesn't bust the cache
+// and each object only ever holds ONE cached bitmap at a time (old
+// entry gets overwritten when the signature changes). URL is carried
+// so invalidateWarpCache(url) can sweep stale entries when the
+// underlying catalog file is overwritten.
+const _warpCache = new Map();
+
+function _getWarpedCanvas(obj, img) {
+  if (!obj.warp || !obj.warp.corners) return null;
+  const sig = obj.warp.corners.flat().map((n) => n.toFixed(1)).join(",");
+  const existing = _warpCache.get(obj.id);
+  if (existing && existing.sig === sig && existing.url === obj.url) {
+    return existing.result;
+  }
+  const result = warpImage(img, obj.warp.corners);
+  _warpCache.set(obj.id, { url: obj.url, sig, result });
+  return result;
+}
+
+export function invalidateWarpCache(url) {
+  for (const [id, entry] of _warpCache) {
+    if (entry.url === url) _warpCache.delete(id);
+  }
 }
 
 function _drawPlaceholderBox(obj) {
@@ -328,6 +545,31 @@ function _onPointerDown(evt) {
   const zoomed = state.view.zoom > 1;
   const editing = getMode() === "edit";
 
+  // Edit-mode sub-tools (shear / warp): if the pointer lands on a
+  // handle of the selected item, start a handle drag and short-circuit
+  // the rest of the flow. Misses fall through to the normal paths.
+  if (editing && state.editSubTool && state.selectedId) {
+    const obj = findObject(state.selectedId);
+    if (obj) {
+      const handleId = _hitHandle(obj, screen.x, screen.y);
+      if (handleId) {
+        subDrag = {
+          handleId,
+          obj,
+          startShear: obj.shear
+            ? { kx: obj.shear.kx || 0, ky: obj.shear.ky || 0 }
+            : { kx: 0, ky: 0 },
+          startWarp: obj.warp
+            ? { corners: obj.warp.corners.map((c) => [c[0], c[1]]) }
+            : null,
+          startWorld: world,
+        };
+        canvas.setPointerCapture(evt.pointerId);
+        return;
+      }
+    }
+  }
+
   // "Unlock all items" (home menu toggle) lets the user drag any item
   // directly without entering edit mode. A press that lands on an item
   // starts a drag + selects it; a press that misses falls through to
@@ -398,6 +640,13 @@ function _startPan(evt) {
 }
 
 function _onPointerMove(evt) {
+  if (subDrag) {
+    const screen = _screenCoords(evt);
+    const world = _screenToWorld(screen.x, screen.y);
+    _updateSubDrag(world);
+    render();
+    return;
+  }
   if (pan) {
     const dx = evt.clientX - pan.startClientX;
     const dy = evt.clientY - pan.startClientY;
@@ -422,6 +671,13 @@ function _onPointerMove(evt) {
 }
 
 function _onPointerUp(evt) {
+  if (subDrag) {
+    if (canvas.hasPointerCapture(evt.pointerId)) {
+      canvas.releasePointerCapture(evt.pointerId);
+    }
+    subDrag = null;
+    return;
+  }
   // Tap-without-drag while zoomed → treat as a selection so the user can
   // inspect items at any zoom. Skipped while editing so we don't swap the
   // active edit-target by accident.
