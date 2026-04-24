@@ -1416,6 +1416,13 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   gap: inherit;
   width: 100%;
   box-sizing: border-box;
+  /* When JS doesn't need to scale (content already fits), the
+     wrap's natural size would leave empty space between DONE
+     and the bottom nav. Force it to at least fill the mode
+     vertically — edit-top has flex:1 so the gained height
+     ends up as vertical room around the joystick / action-stack
+     rather than a dead gap at the bottom. */
+  min-height: 100%;
 }
 
 /* Edit menu no-scroll pass: shrink every control in edit mode
@@ -1451,9 +1458,10 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .mode[data-mode="edit"] .subtool-row .btn-pill {
     font-size: 9px; padding: 2px 4px;
   }
-  /* Fine-rotation slider is redundant next to the 90° rotate
-     buttons on short screens — drop it to reclaim the row. */
-  .mode[data-mode="edit"] .rotate-row { display: none; }
+  /* Rotate slider stays visible on every viewport — the fit-to-
+     panel scale handles any overflow, and hiding it on ≤ 760 left
+     a bottom gap on phones like the Galaxy S23 where content
+     didn't otherwise need shrinking. */
   .mode[data-mode="edit"] .edit-bottom { padding-top: 0; }
   .mode[data-mode="edit"] .edit-bottom .btn-icon {
     width: 28px; height: 28px; font-size: 12px;
