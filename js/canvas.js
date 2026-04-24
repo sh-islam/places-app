@@ -481,6 +481,12 @@ function _drawObject(obj) {
     ctx.transform(1, sh.ky || 0, sh.kx || 0, 1, 0, 0);
   }
 
+  // Selected item: soft accent-tinted shadow that hugs the image's
+  // alpha silhouette (no outline, transparent PNG regions stay clear).
+  if (obj.id === state.selectedId) {
+    ctx.shadowColor = "rgba(80, 150, 255, 0.89)";
+    ctx.shadowBlur = 26;
+  }
   ctx.drawImage(source, -w / 2, -h / 2, w, h);
   ctx.restore();
 }
