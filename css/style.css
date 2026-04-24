@@ -1226,6 +1226,12 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
    individually so every nav icon looks the same scale. */
 .nav-btn[data-nav="settings"],
 .nav-btn[data-nav="logout"]   { font-size: 28px; }
+/* ⏻ is a thin line glyph — font-weight doesn't affect Unicode symbols,
+   so we fake bold with a same-color 1px text-shadow to fatten the stroke
+   and match the visual weight of the emoji siblings. */
+.nav-btn[data-nav="logout"] {
+  text-shadow: 0 0 1px currentColor, 1px 0 0 currentColor, -1px 0 0 currentColor;
+}
 .nav-btn:hover, .nav-btn.active { color: var(--text); }
 
 /* ---------- Catalog drawer ---------- */
