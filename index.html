@@ -72,20 +72,31 @@
           </div>
           <img id="sel-thumb" class="sel-thumb" alt="" />
         </div>
-        <!-- Admin: move this catalog item to a different category/subcategory.
-             The backend physically moves the file and retargets every saved
-             room's URL, so all users see it in its new spot. -->
-        <div class="sel-recategorize admin-only">
-          <label class="muted small">Move to</label>
-          <select id="sel-cat" class="sel-select"></select>
-          <select id="sel-sub" class="sel-select"></select>
-          <button id="sel-move-btn" class="btn-pill" disabled>Go</button>
-        </div>
         <div class="action-row sel-actions">
           <button id="edit-btn" class="btn-pill primary">EDIT</button>
           <button id="visibility-btn" data-action="toggle-visibility" class="btn-icon" title="Toggle visibility">👁</button>
           <button id="rename-btn" class="btn-icon admin-only" title="Rename this catalog item">✎</button>
           <button data-action="delete" class="btn-icon danger" title="Delete">🗑</button>
+        </div>
+        <!-- Admin: re-categorize this catalog item. Picking a different
+             cat+sub enables Go; clicking it physically moves the file on
+             disk and retargets every saved room's URL. "+ New" chip lets
+             the admin create a new category or subcategory on the fly. -->
+        <div class="sel-recategorize admin-only">
+          <div class="recat-header">
+            <span>Move to</span>
+            <button id="sel-move-btn" class="btn-pill" disabled>Go</button>
+          </div>
+          <div class="upload-field">
+            <span>Category</span>
+            <div class="chip-group" id="sel-cat-chips"></div>
+            <input id="sel-cat" type="hidden"/>
+          </div>
+          <div class="upload-field">
+            <span>Subcategory</span>
+            <div class="chip-group" id="sel-sub-chips"></div>
+            <input id="sel-sub" type="hidden"/>
+          </div>
         </div>
       </div>
 

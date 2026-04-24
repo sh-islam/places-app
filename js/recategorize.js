@@ -1,7 +1,8 @@
 // Admin-only: move a catalog item to a different category / subcategory.
-// Lives inside selected-mode as two dropdowns + a Go button. On submit,
-// backend moves the file on disk and retargets every saved room's URL;
-// this module mirrors those changes in local state and refreshes the UI.
+// Lives at the bottom of selected-mode as two chip groups + a Go button.
+// On submit, backend moves the file on disk and retargets every saved
+// room's URL; this module mirrors those changes in local state and
+// refreshes the UI.
 
 import { state } from "./state.js";
 import { api } from "./api.js";
@@ -12,28 +13,29 @@ import { findObject } from "./objects.js";
 // both lazily inside _doMove() instead, which only runs on user click.
 
 
-let _selCat = null;
-let _selSub = null;
+let _catInput = null;
+let _subInput = null;
+let _catChips = null;
+let _subChips = null;
 let _selMoveBtn = null;
 
 
 export function initRecategorize() {
-  _selCat = document.getElementById("sel-cat");
-  _selSub = document.getElementById("sel-sub");
+  _catInput = document.getElementById("sel-cat");
+  _subInput = document.getElementById("sel-sub");
+  _catChips = document.getElementById("sel-cat-chips");
+  _subChips = document.getElementById("sel-sub-chips");
   _selMoveBtn = document.getElementById("sel-move-btn");
-  if (!_selCat || !_selSub || !_selMoveBtn) return;
+  if (!_catInput || !_subInput || !_catChips || !_subChips || !_selMoveBtn) {
+    return;
+  }
 
-  _selCat.addEventListener("change", () => {
-    _populateSub(_selCat.value);
-    _syncMoveEnabled();
-  });
-  _selSub.addEventListener("change", _syncMoveEnabled);
   _selMoveBtn.addEventListener("click", _doMove);
 
-  // Watch the selected-mode div for "active" class changes so we can
-  // repopulate the dropdowns each time the user selects a different
-  // item. This avoids panel.js needing to import from here — prevents
-  // any static import cycles.
+  // Repopulate every time selected-mode becomes active so the chips
+  // reflect the newly-selected item's current category/subcategory.
+  // Using a MutationObserver here keeps panel.js free of any import
+  // back to this module (avoids circular-import footguns).
   const selectedMode = document.querySelector('[data-mode="selected"]');
   if (selectedMode) {
     new MutationObserver(() => {
@@ -44,37 +46,123 @@ export function initRecategorize() {
 
 
 function _refresh() {
-  if (!_selCat || !state.isAdmin) return;
+  if (!state.isAdmin) return;
   const obj = state.selectedId ? findObject(state.selectedId) : null;
   if (!obj) return;
 
   const [curCat, curSub] = _parseCatSub(obj.url);
-  const cats = Object.keys(state.categories || {}).sort();
-  _selCat.innerHTML = cats
-    .map((c) => `<option value="${c}">${_label(c)}</option>`)
-    .join("");
-  if (cats.includes(curCat)) _selCat.value = curCat;
-  _populateSub(_selCat.value, curSub);
+  _catInput.value = curCat || "";
+  _subInput.value = curSub || "";
+  _renderCatChips();
+  _renderSubChips();
   _syncMoveEnabled();
 }
 
 
-function _populateSub(cat, preselected) {
-  const subs = (state.categories && state.categories[cat]) || [];
-  _selSub.innerHTML = subs
-    .map((s) => `<option value="${s}">${_label(s)}</option>`)
-    .join("");
-  if (preselected && subs.includes(preselected)) _selSub.value = preselected;
+function _renderCatChips() {
+  const cats = Object.keys(state.categories || {}).sort();
+  _buildChips(_catChips, cats, _catInput, (v) => {
+    // Switching category resets subcategory so we don't carry the old
+    // sub across categories (usually invalid there).
+    _subInput.value = "";
+    _renderSubChips();
+    _syncMoveEnabled();
+  });
 }
 
 
-// Disabled when the dropdowns still point at the item's current home.
+function _renderSubChips() {
+  const cat = _catInput.value;
+  const subs = (state.categories && state.categories[cat]) || [];
+  _buildChips(_subChips, subs, _subInput, () => _syncMoveEnabled());
+}
+
+
+// Mirrors the pattern used by settings.js's upload form. Each item is a
+// clickable chip; the trailing "+ New" chip replaces itself with an
+// input on click so the admin can create a new category/subcategory
+// without leaving the panel.
+function _buildChips(container, items, hiddenInput, onSelect) {
+  container.innerHTML = "";
+  items.forEach((val) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip" + (hiddenInput.value === val ? " active" : "");
+    chip.textContent = _label(val);
+    chip.addEventListener("click", () => {
+      hiddenInput.value = val;
+      container.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      if (onSelect) onSelect(val);
+    });
+    container.appendChild(chip);
+  });
+
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "chip chip-new";
+  add.textContent = "+ New";
+  add.addEventListener("click", () => {
+    const inp = document.createElement("input");
+    inp.type = "text";
+    inp.className = "chip-input";
+    inp.placeholder = "new name";
+    container.replaceChild(inp, add);
+    inp.focus();
+
+    let committed = false;
+    const commit = () => {
+      if (committed) return;
+      committed = true;
+      const v = _slug(inp.value);
+      if (!v) {
+        // Empty -> just re-render so the + New chip comes back.
+        if (container === _catChips) _renderCatChips();
+        else _renderSubChips();
+        return;
+      }
+      // Persist in local state so the new cat/sub exists before the
+      // backend learns about it (the backend happily auto-creates on
+      // move). Then switch the hidden input to the new value.
+      if (container === _catChips) {
+        state.categories = state.categories || {};
+        if (!(v in state.categories)) state.categories[v] = [];
+        _catInput.value = v;
+        _subInput.value = "";
+        _renderCatChips();
+        _renderSubChips();
+      } else {
+        const cat = _catInput.value;
+        if (cat) {
+          state.categories = state.categories || {};
+          state.categories[cat] = state.categories[cat] || [];
+          if (!state.categories[cat].includes(v)) state.categories[cat].push(v);
+        }
+        _subInput.value = v;
+        _renderSubChips();
+      }
+      _syncMoveEnabled();
+    };
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); commit(); }
+    });
+    inp.addEventListener("blur", commit);
+  });
+  container.appendChild(add);
+}
+
+
+// Go is enabled whenever the chip selections differ from where the
+// item currently lives AND both cat + sub have a value.
 function _syncMoveEnabled() {
   const obj = state.selectedId ? findObject(state.selectedId) : null;
-  if (!obj) { _selMoveBtn.disabled = true; return; }
+  if (!obj || !_catInput.value || !_subInput.value) {
+    _selMoveBtn.disabled = true;
+    return;
+  }
   const [curCat, curSub] = _parseCatSub(obj.url);
   _selMoveBtn.disabled =
-    (_selCat.value === curCat && _selSub.value === curSub);
+    (_catInput.value === curCat && _subInput.value === curSub);
 }
 
 
@@ -84,8 +172,9 @@ async function _doMove() {
   if (!obj) return;
 
   const oldUrl = obj.url;
-  const newCat = _selCat.value;
-  const newSub = _selSub.value;
+  const newCat = _catInput.value;
+  const newSub = _subInput.value;
+  if (!newCat || !newSub) return;
 
   _selMoveBtn.disabled = true;
   try {
@@ -125,6 +214,13 @@ async function _doMove() {
 function _parseCatSub(url) {
   const parts = (url || "").replace(/^\/catalog\//, "").split("/");
   return [parts[0], parts[1]];
+}
+
+
+function _slug(s) {
+  return (s || "").trim().toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
 }
 
 

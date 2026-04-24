@@ -847,30 +847,29 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   border-radius: 8px;
 }
 
-/* Admin re-categorize row — live between sel-row and sel-actions.
-   Two compact dropdowns + a Go button. Hidden for non-admins via
-   .admin-only. */
+/* Admin re-categorize section — sits at the bottom of selected-mode,
+   below the action row. Chip-group styling matches the settings upload
+   form so the look is consistent. Separator rule above visually detaches
+   it from the action row. */
 .sel-recategorize {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.recat-header {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.sel-recategorize label {
-  margin-right: 2px;
-}
-.sel-select {
-  flex: 1 1 90px;
-  min-width: 0;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  color: var(--text);
-  padding: 4px 6px;
-  font-size: 12px;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 #sel-move-btn {
-  padding: 4px 12px;
+  padding: 4px 14px;
   font-size: 12px;
 }
 
