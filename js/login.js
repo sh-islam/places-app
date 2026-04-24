@@ -23,6 +23,31 @@ document.addEventListener("dragstart", (e) => {
 });
 
 
+// Both Safari and Chrome skip the font-display:swap repaint for
+// autofilled inputs — once the field is painted with the fallback
+// font, the autofilled text stays in that font until the user
+// clicks the field. The :-webkit-autofill CSS rule sets
+// font-family !important, but inline-style swaps can't beat it, and
+// programmatic focus is off-limits (we don't want autofocus or to
+// pop the iOS keyboard). The clean fix: hide the inputs until the
+// pixel font has actually loaded, so they paint in Press Start 2P
+// from the first frame whether autofilled or not. 1.5s safety cap
+// in case the font CDN is unreachable.
+if (document.fonts && document.fonts.load) {
+  for (const input of form.querySelectorAll("input")) {
+    input.style.visibility = "hidden";
+  }
+  Promise.race([
+    document.fonts.load('12px "Press Start 2P"'),
+    new Promise((r) => setTimeout(r, 1500)),
+  ]).finally(() => {
+    for (const input of form.querySelectorAll("input")) {
+      input.style.visibility = "";
+    }
+  });
+}
+
+
 // ---- Splash played AFTER a successful sign-in ----
 //
 // Called once the backend accepts the credentials. Enlarged icon +
@@ -89,6 +114,15 @@ form.addEventListener("submit", async (e) => {
     }
     document.body.setAttribute("tabindex", "-1");
     document.body.focus();
+
+    // Wait for the iOS keyboard to finish sliding down before opening
+    // the splash. While the keyboard is animating, position:fixed
+    // elements on iOS Safari are positioned relative to the SHRUNKEN
+    // visual viewport, so a centered splash icon lands too high. As
+    // the keyboard finishes hiding the viewport expands and the icon
+    // visibly jumps. Logout doesn't have this problem because no
+    // input was focused. ~350ms covers iOS's keyboard slide animation.
+    await new Promise((r) => setTimeout(r, 350));
 
     await playWelcomeSplash();
 

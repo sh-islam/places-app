@@ -72,7 +72,7 @@ function _syncSortButtons() {
   if (nameBtn) nameBtn.classList.toggle("active", _sortMode === "name");
   if (timeBtn) timeBtn.classList.toggle("active", _sortMode === "time");
   if (dirBtn) {
-    dirBtn.textContent = _sortDir === "asc" ? "↓" : "↑";
+    dirBtn.textContent = _sortDir === "asc" ? "↑" : "↓";
     dirBtn.title = _sortDir === "asc"
       ? "Ascending (A→Z / oldest→newest). Click to flip."
       : "Descending (Z→A / newest→oldest). Click to flip.";
