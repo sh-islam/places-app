@@ -108,7 +108,16 @@ function _buildMatrix(obj, w, h, rect) {
 function _composeFilter(obj, selected) {
   const base = filterStringFor(obj);
   const baseStr = base === "none" ? "" : base;
-  const glow = selected ? "drop-shadow(0 0 24px rgba(80, 150, 255, 0.93))" : "";
+  // A single drop-shadow at a big blur radius spreads the alpha so
+  // thin that it reads as an outline rather than a glow. Stacking
+  // three drop-shadows at increasing radii builds up density near
+  // the silhouette and fades outward — visually matches the canvas
+  // ctx.shadowBlur=54 look for selected PNGs.
+  const glow = selected
+    ? "drop-shadow(0 0 6px rgba(80, 150, 255, 0.93))"
+      + " drop-shadow(0 0 14px rgba(80, 150, 255, 0.85))"
+      + " drop-shadow(0 0 24px rgba(80, 150, 255, 0.6))"
+    : "";
   const out = [baseStr, glow].filter(Boolean).join(" ");
   return out || "none";
 }

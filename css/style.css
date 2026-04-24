@@ -473,12 +473,17 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 /* GIF overlay layer — siblings of the canvas, fills the same box.
    Each child <img> is positioned by a CSS matrix that mirrors the
    canvas object transform so animated GIFs land at the same place
-   and orient the same way as canvas-rendered items. */
+   and orient the same way as canvas-rendered items. isolation +
+   z-index 0 force this element to be its own stacking context so
+   child z-indexes (= obj.layer) can't escape and overlap things
+   outside the scene, like an open catalog drawer. */
 .gif-layer {
   position: absolute;
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  isolation: isolate;
+  z-index: 0;
 }
 .gif-layer img {
   position: absolute;
@@ -1356,7 +1361,7 @@ body.adv-editing .adv-zoom-controls { display: flex; }
    leaving a gap where the pre-scaled box used to live. */
 .mode[data-mode="edit"] { overflow-y: hidden; }
 @media (max-height: 860px) {
-  .mode[data-mode="edit"] { zoom: 0.92; }
+  .mode[data-mode="edit"] { zoom: 0.87; }
 }
 @media (max-height: 760px) {
   .mode[data-mode="edit"] .controller {
@@ -1375,7 +1380,7 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .mode[data-mode="edit"] .action-stack .round-btn,
   .mode[data-mode="edit"] .action-stack .icon-btn { width: 38px; height: 38px; }
   .mode[data-mode="edit"] .action-stack .round-btn { font-size: 14px; }
-  .mode[data-mode="edit"] { gap: 3px; zoom: 0.82; }
+  .mode[data-mode="edit"] { gap: 3px; zoom: 0.78; }
   .mode[data-mode="edit"] .subtool-row .btn-pill {
     font-size: 10px; padding: 3px 5px;
   }
@@ -1399,7 +1404,7 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .mode[data-mode="edit"] .action-stack .round-btn,
   .mode[data-mode="edit"] .action-stack .icon-btn { width: 34px; height: 34px; }
   .mode[data-mode="edit"] .edit-bottom .btn-icon { width: 32px; height: 32px; }
-  .mode[data-mode="edit"] { zoom: 0.7; }
+  .mode[data-mode="edit"] { zoom: 0.665; }
 }
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {

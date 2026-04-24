@@ -178,13 +178,11 @@ async function boot() {
     hideBtn.classList.toggle("active", hidden);
   });
 
-  // Screenshot: capture canvas + any DOM-overlay GIFs into a single
-  // PNG/JPG. Composites by cloning the live canvas, then drawing each
-  // GIF <img>'s current frame on top under the same CSS matrix the
-  // overlay uses so positions line up. If any GIFs are on canvas the
-  // user gets a choice of format (JPG = smaller, white bg; PNG =
-  // lossless, transparent). Animated GIF export is not supported
-  // (would need a multi-frame encoder library) — noted in prompt.
+  // Screenshot: always outputs PNG of the composed scene (canvas + any
+  // DOM-overlay GIFs' current frames). If GIFs are on canvas, the user
+  // also gets the option to download an animated GIF — when there's
+  // exactly one GIF we save its source file; recording multiple GIFs
+  // into a single animation would need a multi-frame encoder library.
   document.getElementById("screenshot-btn").addEventListener("click", async () => {
     const srcCanvas = document.getElementById("room-canvas");
     const gifLayer = document.getElementById("gif-layer");
@@ -193,63 +191,84 @@ async function boot() {
         .filter((im) => im.style.visibility !== "hidden" && im.naturalWidth > 0)
       : [];
 
-    let format = "png";
-    if (overlayImgs.length > 0) {
-      const wantsJpg = window.confirm(
-        "This scene has animated GIFs. Animated GIF export isn't supported; " +
-        "the snapshot will be a still image.\n\n" +
-        "OK = JPG (smaller, white background)\n" +
-        "Cancel = PNG (lossless, transparent)"
-      );
-      format = wantsJpg ? "jpg" : "png";
-    }
-
-    // Compose onto an offscreen canvas sized to the live backing store.
-    const dpr = window.devicePixelRatio || 1;
-    const out = document.createElement("canvas");
-    out.width = srcCanvas.width;
-    out.height = srcCanvas.height;
-    const octx = out.getContext("2d");
-    if (format === "jpg") {
-      // JPG has no alpha — paint a white bg so transparent regions aren't black.
-      octx.fillStyle = "#ffffff";
-      octx.fillRect(0, 0, out.width, out.height);
-    }
-    // Copy the live canvas (bg + non-GIF items).
-    octx.drawImage(srcCanvas, 0, 0);
-
-    // Draw each GIF's current frame. Parse its CSS transform (matrix(a,b,c,d,e,f),
-    // CSS-pixel units) and apply it to the canvas 2D ctx, scaled by dpr so the
-    // composite lines up with the backing-store canvas.
-    for (const img of overlayImgs) {
-      const cs = getComputedStyle(img);
-      const m = cs.transform;
-      if (!m || m === "none") continue;
-      const match = /matrix\(([-0-9eE., ]+)\)/.exec(m);
-      if (!match) continue;
-      const [a, b, c, d, e, f] = match[1].split(",").map((s) => parseFloat(s));
-      octx.save();
-      // CSS pixels → backing pixels: all components of the translate AND the
-      // linear scale need dpr. The linear (a,b,c,d) are dimensionless ratios
-      // in CSS space, but since the source <img> is sized in CSS pixels and
-      // we're drawing into backing pixels, scaling them by dpr converts
-      // everything into the right coordinate system.
-      octx.setTransform(a * dpr, b * dpr, c * dpr, d * dpr, e * dpr, f * dpr);
-      octx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
-      octx.restore();
-    }
-
-    out.toBlob(
-      (blob) => {
+    async function downloadPng() {
+      const dpr = window.devicePixelRatio || 1;
+      const out = document.createElement("canvas");
+      out.width = srcCanvas.width;
+      out.height = srcCanvas.height;
+      const octx = out.getContext("2d");
+      octx.drawImage(srcCanvas, 0, 0);
+      for (const img of overlayImgs) {
+        const cs = getComputedStyle(img);
+        const m = cs.transform;
+        if (!m || m === "none") continue;
+        const match = /matrix\(([-0-9eE., ]+)\)/.exec(m);
+        if (!match) continue;
+        const [a, b, c, d, e, f] = match[1].split(",").map((s) => parseFloat(s));
+        octx.save();
+        octx.setTransform(a * dpr, b * dpr, c * dpr, d * dpr, e * dpr, f * dpr);
+        octx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+        octx.restore();
+      }
+      out.toBlob((blob) => {
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = `room_${Date.now()}.${format === "jpg" ? "jpg" : "png"}`;
+        a.download = `room_${Date.now()}.png`;
         a.click();
         URL.revokeObjectURL(a.href);
-      },
-      format === "jpg" ? "image/jpeg" : "image/png",
-      1.0,
+      }, "image/png");
+    }
+
+    async function downloadGif(img) {
+      try {
+        const res = await fetch(img.src);
+        const blob = await res.blob();
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `room_${Date.now()}.gif`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        alert("Couldn't fetch the GIF source — falling back to PNG.");
+        downloadPng();
+      }
+    }
+
+    if (overlayImgs.length === 0) {
+      downloadPng();
+      return;
+    }
+
+    if (overlayImgs.length === 1) {
+      const wantsGif = window.confirm(
+        "This scene has one animated GIF.\n\n" +
+        "OK = download the GIF (animated, full quality)\n" +
+        "Cancel = download PNG (whole scene, still frame)"
+      );
+      if (wantsGif) downloadGif(overlayImgs[0]);
+      else downloadPng();
+      return;
+    }
+
+    // Multiple GIFs: combined animation export isn't supported, but
+    // offer to download one of them — prefer the currently-selected
+    // GIF if it's in the overlay, else the first.
+    const selId = state.selectedId;
+    const selImg = selId
+      ? overlayImgs.find((im) => im.dataset.url
+        && state.room.objects.find((o) => o.id === selId && o.url === im.dataset.url))
+      : null;
+    const pickedGif = selImg || overlayImgs[0];
+    const wantsGif = window.confirm(
+      `This scene has ${overlayImgs.length} animated GIFs. A combined ` +
+      "animated export isn't supported.\n\n" +
+      (selImg
+        ? "OK = download the SELECTED GIF (animated)\n"
+        : "OK = download one GIF source (animated)\n") +
+      "Cancel = download PNG (whole scene, still frame)"
     );
+    if (wantsGif) downloadGif(pickedGif);
+    else downloadPng();
   });
 
   // Lock / unlock all items — when unlocked, any item can be dragged
