@@ -48,6 +48,10 @@ function _render() {
   bodyEl.innerHTML = html;
   _wireThemePicker();
   if (state.isAdmin) _wireAdminForm();
+  // Re-apply after a render so the opacity-row visibility matches the
+  // current theme on first open. Without this the row is initially
+  // rendered visible until the user toggles a theme.
+  _applyTheme();
 }
 
 
