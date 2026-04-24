@@ -27,6 +27,10 @@ let _sourceUrl = null;
 let _dirty = false;
 let _toolHandle = null;      // {render?, refresh?, destroy}
 let _renderFit = null;       // {scale, offsetX, offsetY, renderedW, renderedH}
+// Editor-only scene chrome: solid bg fill vs checkerboard transparency.
+// Enabled by default at hue 0 → near-black (hsl(0, 30%, 6%)).
+let _bgEnabled = true;
+let _bgHue = 0;
 
 
 export function initAdvancedEdit() {
@@ -41,6 +45,16 @@ export function initAdvancedEdit() {
   for (const btn of document.querySelectorAll(".adv-tool-btn")) {
     btn.addEventListener("click", () => _setTool(btn.dataset.tool));
   }
+  const bgToggle = document.getElementById("adv-bg-toggle");
+  const bgHue    = document.getElementById("adv-bg-hue");
+  if (bgToggle) bgToggle.addEventListener("change", () => {
+    _bgEnabled = bgToggle.checked;
+    _rerender();
+  });
+  if (bgHue) bgHue.addEventListener("input", () => {
+    _bgHue = Number(bgHue.value);
+    _rerender();
+  });
   window.addEventListener("resize", () => { if (_isActive()) _rerender(); });
 
   // Observe the advanced-edit mode div — if a nav-home / logout / any
@@ -243,7 +257,10 @@ function _rerender() {
   // it's stable across re-renders. We reset the transform to draw in CSS
   // pixels.
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = "#0a0a0d";
+  // Scene background: either a solid hue-tinted fill (default) or the
+  // dark fallback + checkerboard that reveals image transparency. At
+  // hue=0 the HSL fill reads as near-black; sliding reveals a tint.
+  ctx.fillStyle = _bgEnabled ? `hsl(${_bgHue}, 30%, 6%)` : "#0a0a0d";
   ctx.fillRect(0, 0, rect.width, rect.height);
 
   const availW = rect.width - EDGE_MARGIN * 2;
@@ -255,7 +272,9 @@ function _rerender() {
   const offsetY = (rect.height - renderedH) / 2;
   _renderFit = { scale, offsetX, offsetY, renderedW, renderedH };
 
-  _drawCheckerboard(ctx, offsetX, offsetY, renderedW, renderedH);
+  if (!_bgEnabled) {
+    _drawCheckerboard(ctx, offsetX, offsetY, renderedW, renderedH);
+  }
   ctx.drawImage(_workCanvas, offsetX, offsetY, renderedW, renderedH);
 
   if (_overlayEl) {
@@ -637,10 +656,12 @@ function _makeShearTool() {
     const rect = _sceneCanvas.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = "#0a0a0d";
+    ctx.fillStyle = _bgEnabled ? `hsl(${_bgHue}, 30%, 6%)` : "#0a0a0d";
     ctx.fillRect(0, 0, rect.width, rect.height);
     const fit = _renderFit;
-    _drawCheckerboard(ctx, fit.offsetX, fit.offsetY, fit.renderedW, fit.renderedH);
+    if (!_bgEnabled) {
+      _drawCheckerboard(ctx, fit.offsetX, fit.offsetY, fit.renderedW, fit.renderedH);
+    }
     ctx.save();
     ctx.beginPath();
     ctx.rect(fit.offsetX, fit.offsetY, fit.renderedW, fit.renderedH);

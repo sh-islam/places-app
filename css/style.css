@@ -1324,6 +1324,23 @@ body.adv-editing .room-dots { display: none !important; }
   border-color: var(--accent);
   color: #fff;
 }
+.adv-scene-opts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 2px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.adv-bg-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.adv-bg-toggle input { accent-color: var(--accent); }
+#adv-bg-hue { flex: 1; min-width: 0; }
 .adv-tool-controls {
   display: flex;
   flex-direction: column;

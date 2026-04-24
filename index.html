@@ -223,6 +223,17 @@
           <button class="adv-tool-btn" data-tool="shear">Shear</button>
           <button class="adv-tool-btn" data-tool="perspective">Warp</button>
         </div>
+        <!-- Persistent scene options: toggle the solid background fill
+             and pick its hue. When toggle is off we show the checker-
+             board transparency pattern instead. Starts on at hue 0 so
+             the editor opens on a near-black canvas by default. -->
+        <div class="adv-scene-opts">
+          <label class="adv-bg-toggle">
+            <input type="checkbox" id="adv-bg-toggle" checked/>
+            <span>BG</span>
+          </label>
+          <input id="adv-bg-hue" type="range" min="0" max="360" step="1" value="0" class="theme-range hue-range"/>
+        </div>
         <div id="adv-tool-controls" class="adv-tool-controls"></div>
         <div class="action-row adv-actions">
           <button id="adv-save-btn" class="btn-pill" disabled>Save Image</button>
