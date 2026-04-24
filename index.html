@@ -26,15 +26,12 @@
     <section class="scene">
       <div class="scene-inner">
         <canvas id="room-canvas" width="800" height="800"></canvas>
-        <!-- DOM overlay for items. All non-warped objects (PNG + GIF)
-             render here as <img>s so CSS z-index can honour obj.layer
-             across the whole scene. pointer-events: none so clicks
-             pass through to the canvas hit-test. -->
+        <!-- DOM overlay for animated GIFs. Canvas drawImage only paints
+             the first frame of an animated GIF; rendering them as <img>
+             elements with CSS transforms mirroring the canvas math lets
+             the browser handle frame playback. pointer-events: none so
+             clicks pass through to the canvas hit-test. -->
         <div id="gif-layer" class="gif-layer"></div>
-        <!-- Top-layer canvas for sub-tool handles (shear / warp drag
-             points). Sits above the item overlay so handles aren't
-             hidden by the item being edited. -->
-        <canvas id="handles-canvas" class="handles-canvas"></canvas>
       </div>
       <!-- Zoom controls (top-left of scene) -->
       <div class="zoom-controls" aria-label="Zoom controls">
