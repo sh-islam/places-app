@@ -8,7 +8,7 @@
 // mode there) and we commandeer #room-canvas to draw a centred preview
 // of the work canvas plus an HTML overlay for per-tool handles.
 
-import { state, markDirty } from "./state.js";
+import { state } from "./state.js";
 import { api } from "./api.js";
 import { findObject } from "./objects.js";
 import { loadImage } from "./images.js";
@@ -231,10 +231,11 @@ async function _save() {
     const { invalidateAlphaCache } = await import("./canvas.js");
     if (invalidateAlphaCache) invalidateAlphaCache(_sourceUrl);
 
-    // The room objects reference this image by url; dimensions may have
-    // changed (crop / shear / warp). Mark the room dirty so the scene
-    // save flushes whatever layout was in flight.
-    markDirty();
+    // Explicitly do NOT markDirty() here — advanced-edit modifies the
+    // catalog file on the server, not any room / user / background
+    // state. The top-level SAVE button is for room changes; calling
+    // markDirty() would make it blink red after every image edit,
+    // misleading the admin into thinking the room needs saving.
     _setStatus(`Overwritten ${_sourceUrl}`, "ok");
   } catch (err) {
     _setStatus(`Save failed: ${err.message}`, "err");
