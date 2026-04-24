@@ -32,6 +32,184 @@ document.addEventListener("dragstart", (e) => {
 });
 
 
+// ---------- Screenshot modal + animated GIF export ----------
+
+// Lazy-load gif.js from CDN on first use. Worker is fetched as text
+// then wrapped in a blob URL so cross-origin worker-loading rules
+// don't block it (gif.js needs its worker on the same origin). The
+// main library is loaded via a normal <script> tag which sets
+// window.GIF. Cached after first load so subsequent exports are fast.
+let _gifJsPromise = null;
+function _loadGifJs() {
+  if (_gifJsPromise) return _gifJsPromise;
+  const MAIN = "https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js";
+  const WORKER = "https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js";
+  _gifJsPromise = (async () => {
+    const wRes = await fetch(WORKER);
+    if (!wRes.ok) throw new Error(`gif.worker.js fetch: ${wRes.status}`);
+    const wCode = await wRes.text();
+    const workerUrl = URL.createObjectURL(
+      new Blob([wCode], { type: "application/javascript" })
+    );
+    await new Promise((res, rej) => {
+      const s = document.createElement("script");
+      s.src = MAIN;
+      s.onload = res;
+      s.onerror = () => rej(new Error("gif.js script failed to load"));
+      document.head.appendChild(s);
+    });
+    return { GIF: window.GIF, workerUrl };
+  })().catch((err) => { _gifJsPromise = null; throw err; });
+  return _gifJsPromise;
+}
+
+
+// Compose one frame: copy the live room canvas and draw every visible
+// GIF overlay <img>'s current frame on top using the same CSS matrix
+// transform the overlay is using, scaled by DPR to land in backing
+// pixels. Returns a canvas element sized to the backing store.
+function _composeSceneCanvas() {
+  const srcCanvas = document.getElementById("room-canvas");
+  const gifLayer = document.getElementById("gif-layer");
+  const overlayImgs = gifLayer
+    ? Array.from(gifLayer.querySelectorAll("img"))
+      .filter((im) => im.style.visibility !== "hidden" && im.naturalWidth > 0)
+    : [];
+  const dpr = window.devicePixelRatio || 1;
+  const out = document.createElement("canvas");
+  out.width = srcCanvas.width;
+  out.height = srcCanvas.height;
+  const octx = out.getContext("2d");
+  octx.drawImage(srcCanvas, 0, 0);
+  for (const img of overlayImgs) {
+    const cs = getComputedStyle(img);
+    const m = cs.transform;
+    if (!m || m === "none") continue;
+    const match = /matrix\(([-0-9eE., ]+)\)/.exec(m);
+    if (!match) continue;
+    const [a, b, c, d, e, f] = match[1].split(",").map((s) => parseFloat(s));
+    octx.save();
+    octx.setTransform(a * dpr, b * dpr, c * dpr, d * dpr, e * dpr, f * dpr);
+    octx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
+    octx.restore();
+  }
+  return out;
+}
+
+
+function _downloadSceneAsPng() {
+  const out = _composeSceneCanvas();
+  out.toBlob((blob) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `room_${Date.now()}.png`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, "image/png");
+}
+
+
+async function _downloadSceneAsGif(onProgress) {
+  const { GIF, workerUrl } = await _loadGifJs();
+  const srcCanvas = document.getElementById("room-canvas");
+  const FPS = 20;
+  const DURATION_MS = 2500;
+  const FRAMES = Math.round(FPS * DURATION_MS / 1000);
+  const FRAME_DELAY = Math.round(1000 / FPS);
+
+  const gif = new GIF({
+    workers: 2,
+    quality: 10,
+    width: srcCanvas.width,
+    height: srcCanvas.height,
+    workerScript: workerUrl,
+    debug: false,
+  });
+
+  for (let i = 0; i < FRAMES; i++) {
+    if (onProgress) onProgress(`Recording ${i + 1}/${FRAMES}…`);
+    await new Promise((r) => setTimeout(r, FRAME_DELAY));
+    gif.addFrame(_composeSceneCanvas(), { copy: true, delay: FRAME_DELAY });
+  }
+
+  await new Promise((resolve, reject) => {
+    gif.on("progress", (p) => {
+      if (onProgress) onProgress(`Encoding ${Math.round(p * 100)}%…`);
+    });
+    gif.on("finished", (blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `room_${Date.now()}.gif`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      resolve();
+    });
+    gif.on("abort", () => reject(new Error("gif encode aborted")));
+    gif.render();
+  });
+}
+
+
+function _openScreenshotDialog() {
+  const dialog = document.getElementById("screenshot-dialog");
+  const body = document.getElementById("screenshot-body");
+  const pngBtn = document.getElementById("screenshot-png");
+  const gifBtn = document.getElementById("screenshot-gif");
+  const cancelBtn = document.getElementById("screenshot-cancel");
+  const progress = document.getElementById("screenshot-progress");
+  if (!dialog) return;
+
+  const hasGifs = !!(document.getElementById("gif-layer")
+    && document.querySelectorAll("#gif-layer img").length > 0);
+  body.textContent = hasGifs
+    ? "This scene has animated GIFs. Export a still image (PNG) or a recorded animation (GIF)?"
+    : "Choose a format:";
+  gifBtn.disabled = false;
+  progress.hidden = true;
+  progress.textContent = "";
+  dialog.hidden = false;
+
+  function cleanup() {
+    dialog.hidden = true;
+    pngBtn.onclick = null;
+    gifBtn.onclick = null;
+    cancelBtn.onclick = null;
+  }
+
+  pngBtn.onclick = () => {
+    cleanup();
+    _downloadSceneAsPng();
+  };
+
+  gifBtn.onclick = async () => {
+    pngBtn.disabled = true;
+    gifBtn.disabled = true;
+    cancelBtn.disabled = true;
+    progress.hidden = false;
+    progress.textContent = "Loading gif encoder…";
+    try {
+      await _downloadSceneAsGif((msg) => { progress.textContent = msg; });
+    } catch (err) {
+      progress.textContent = `GIF export failed: ${err.message || err}`;
+      console.error("gif export failed", err);
+      // Leave dialog open briefly so the user sees the error.
+      setTimeout(() => {
+        pngBtn.disabled = false;
+        gifBtn.disabled = false;
+        cancelBtn.disabled = false;
+      }, 100);
+      return;
+    }
+    pngBtn.disabled = false;
+    gifBtn.disabled = false;
+    cancelBtn.disabled = false;
+    cleanup();
+  };
+
+  cancelBtn.onclick = cleanup;
+}
+
+
 async function boot() {
   // If login.js tacked a token onto the URL hash (#t=...), adopt it and
   // clean the URL. This is the safety net for mobile browsers that
@@ -178,97 +356,13 @@ async function boot() {
     hideBtn.classList.toggle("active", hidden);
   });
 
-  // Screenshot: always outputs PNG of the composed scene (canvas + any
-  // DOM-overlay GIFs' current frames). If GIFs are on canvas, the user
-  // also gets the option to download an animated GIF — when there's
-  // exactly one GIF we save its source file; recording multiple GIFs
-  // into a single animation would need a multi-frame encoder library.
-  document.getElementById("screenshot-btn").addEventListener("click", async () => {
-    const srcCanvas = document.getElementById("room-canvas");
-    const gifLayer = document.getElementById("gif-layer");
-    const overlayImgs = gifLayer
-      ? Array.from(gifLayer.querySelectorAll("img"))
-        .filter((im) => im.style.visibility !== "hidden" && im.naturalWidth > 0)
-      : [];
-
-    async function downloadPng() {
-      const dpr = window.devicePixelRatio || 1;
-      const out = document.createElement("canvas");
-      out.width = srcCanvas.width;
-      out.height = srcCanvas.height;
-      const octx = out.getContext("2d");
-      octx.drawImage(srcCanvas, 0, 0);
-      for (const img of overlayImgs) {
-        const cs = getComputedStyle(img);
-        const m = cs.transform;
-        if (!m || m === "none") continue;
-        const match = /matrix\(([-0-9eE., ]+)\)/.exec(m);
-        if (!match) continue;
-        const [a, b, c, d, e, f] = match[1].split(",").map((s) => parseFloat(s));
-        octx.save();
-        octx.setTransform(a * dpr, b * dpr, c * dpr, d * dpr, e * dpr, f * dpr);
-        octx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight);
-        octx.restore();
-      }
-      out.toBlob((blob) => {
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `room_${Date.now()}.png`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      }, "image/png");
-    }
-
-    async function downloadGif(img) {
-      try {
-        const res = await fetch(img.src);
-        const blob = await res.blob();
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `room_${Date.now()}.gif`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      } catch (e) {
-        alert("Couldn't fetch the GIF source — falling back to PNG.");
-        downloadPng();
-      }
-    }
-
-    if (overlayImgs.length === 0) {
-      downloadPng();
-      return;
-    }
-
-    if (overlayImgs.length === 1) {
-      const wantsGif = window.confirm(
-        "This scene has one animated GIF.\n\n" +
-        "OK = download the GIF (animated, full quality)\n" +
-        "Cancel = download PNG (whole scene, still frame)"
-      );
-      if (wantsGif) downloadGif(overlayImgs[0]);
-      else downloadPng();
-      return;
-    }
-
-    // Multiple GIFs: combined animation export isn't supported, but
-    // offer to download one of them — prefer the currently-selected
-    // GIF if it's in the overlay, else the first.
-    const selId = state.selectedId;
-    const selImg = selId
-      ? overlayImgs.find((im) => im.dataset.url
-        && state.room.objects.find((o) => o.id === selId && o.url === im.dataset.url))
-      : null;
-    const pickedGif = selImg || overlayImgs[0];
-    const wantsGif = window.confirm(
-      `This scene has ${overlayImgs.length} animated GIFs. A combined ` +
-      "animated export isn't supported.\n\n" +
-      (selImg
-        ? "OK = download the SELECTED GIF (animated)\n"
-        : "OK = download one GIF source (animated)\n") +
-      "Cancel = download PNG (whole scene, still frame)"
-    );
-    if (wantsGif) downloadGif(pickedGif);
-    else downloadPng();
+  // Screenshot: real modal dialog (not OS confirm) with three choices.
+  // PNG = composed still of canvas + current GIF frames. GIF = record
+  // ~2.5 s of the scene at ~20fps and encode a single animated GIF
+  // via gif.js (loaded lazily from CDN so the bundle stays small
+  // until the user actually wants an animated export).
+  document.getElementById("screenshot-btn").addEventListener("click", () => {
+    _openScreenshotDialog();
   });
 
   // Lock / unlock all items — when unlocked, any item can be dragged

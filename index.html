@@ -390,6 +390,21 @@
       <p class="splash-slogan"><span id="splash-text"></span><span class="splash-caret">|</span></p>
     </div>
   </div>
+  <!-- Screenshot save dialog: real modal (not an OS confirm()) with
+       three explicit choices. GIF option records ~2.5 s of the scene
+       and encodes an animated GIF via gif.js loaded on demand. -->
+  <div id="screenshot-dialog" class="dialog-backdrop" hidden>
+    <div class="dialog-card">
+      <h2 class="dialog-title">Save snapshot</h2>
+      <p class="dialog-body" id="screenshot-body">Choose a format:</p>
+      <div class="dialog-actions">
+        <button id="screenshot-png" class="btn-pill primary" type="button">PNG (still)</button>
+        <button id="screenshot-gif" class="btn-pill" type="button">GIF (animated, ~2.5 s)</button>
+        <button id="screenshot-cancel" class="btn-pill" type="button">Cancel</button>
+      </div>
+      <div id="screenshot-progress" class="dialog-progress" hidden></div>
+    </div>
+  </div>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

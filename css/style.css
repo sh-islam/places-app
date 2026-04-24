@@ -189,6 +189,47 @@ input, textarea, [contenteditable] {
   background: linear-gradient(135deg, #1a1d22, #2a2f38);
   z-index: 100;
 }
+
+/* Generic save/choose-format dialog used by the screenshot button.
+   Real modal: backdrop + centred card with stacked action pills,
+   beats an OS confirm() that only shows OK/Cancel and can't
+   surface multiple named options. */
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.dialog-backdrop[hidden] { display: none; }
+.dialog-card {
+  background: var(--bg-panel, #1a1d22);
+  color: var(--fg, #eaeaea);
+  padding: 20px;
+  border-radius: 12px;
+  max-width: 320px;
+  width: 90vw;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.dialog-title { margin: 0 0 8px; font-size: 16px; font-weight: 600; }
+.dialog-body  { margin: 0 0 14px; font-size: 13px; opacity: 0.85; }
+.dialog-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dialog-actions .btn-pill { width: 100%; }
+.dialog-progress {
+  margin-top: 12px;
+  font-size: 12px;
+  opacity: 0.75;
+  text-align: center;
+}
 .splash[hidden] { display: none; }
 /* .splash-card mirrors .login-card's width + padding. Icon at top,
    title + slogan below. No background / border — it's invisible; its
@@ -1197,11 +1238,14 @@ body.adv-editing .adv-zoom-controls { display: flex; }
    joystick + action-stack cluster sits lower and bigger rather than
    being pinned at the top with whitespace underneath. */
 .edit-top {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  /* Flex so the controller and action-stack spread to the wrap's
+     full width with symmetric space around them, instead of each
+     being centred in a fixed 1fr grid cell (which left chunks of
+     empty horizontal space even after the fit-to-panel scale). */
+  display: flex;
+  justify-content: space-around;
   align-items: center;
-  justify-items: center;
+  gap: 8px;
   padding: 4px 0;
   flex: 1 1 auto;
 }
