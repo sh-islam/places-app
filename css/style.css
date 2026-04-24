@@ -1330,19 +1330,18 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .action-stack .round-btn,
   .action-stack .icon-btn { width: 46px; height: 46px; }
   .action-stack .round-btn { font-size: 16px; }
-  /* Users asked for +/− 1.5× and rotate 2× on mobile so the
-     primary edit actions are easier to tap. Keep the non-primary
-     icon-btns at the base 46px. */
-  .action-stack .round-btn.scale-up,
-  .action-stack .round-btn.scale-down {
-    width: 69px; height: 69px; font-size: 22px;
-  }
-  .action-stack .round-btn.rotate-btn {
-    width: 92px; height: 92px; font-size: 34px;
-  }
   .mode        { gap: 4px; }
   .rotate-row  { gap: 4px; }
   .subtool-row .btn-pill { font-size: 11px; padding: 4px 6px; }
+  /* Edit menu shrinks proportionally on short mobile viewports so
+     joystick + action stack + sub-tool + rotate + bottom rows all
+     fit without scrolling. zoom affects layout (unlike transform:
+     scale) so the panel actually takes less vertical space. Scoped
+     to edit mode only — other mode panels are unchanged. */
+  .mode[data-mode="edit"] {
+    zoom: 0.82;
+    overflow-y: hidden;
+  }
 }
 @media (max-height: 640px) {
   .controller {
@@ -1361,15 +1360,10 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .action-stack .round-btn,
   .action-stack .icon-btn { width: 42px; height: 42px; }
   .action-stack .round-btn { font-size: 15px; }
-  .action-stack .round-btn.scale-up,
-  .action-stack .round-btn.scale-down {
-    width: 63px; height: 63px; font-size: 20px;
-  }
-  .action-stack .round-btn.rotate-btn {
-    width: 84px; height: 84px; font-size: 30px;
-  }
   .panel-header { padding: 2px 0 4px; margin-bottom: 6px; }
   .edit-top { padding: 0; }
+  /* Even smaller viewports get a tighter shrink on edit mode. */
+  .mode[data-mode="edit"] { zoom: 0.72; }
 }
 .action-stack .round-btn { font-size: 20px; }
 /* ⟲/⟳ render thinner than +/− at the same font-size on most
