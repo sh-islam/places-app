@@ -720,7 +720,7 @@ function _hitTest(px, py) {
   return null;
 }
 
-function _pointInsideObject(px, py, obj) {
+function _pointInsideObject(px, py, obj, bboxOnly = false) {
   const img = getCachedImage(obj.url);
   if (!img) return false;
   // Transform world point into the object's local (unrotated, unscaled) space.
@@ -734,6 +734,11 @@ function _pointInsideObject(px, py, obj) {
   const halfW = img.naturalWidth / 2;
   const halfH = img.naturalHeight / 2;
   if (Math.abs(lx) > halfW || Math.abs(ly) > halfH) return false;
+  // bboxOnly skips the alpha check so the caller can drag items whose
+  // visible pixels are sparse (mostly-white/transparent) without the
+  // pointer having to land on a solid pixel. Used by edit mode where
+  // the user has already committed to a specific object.
+  if (bboxOnly) return true;
   // Inside the bounding box — check the image's actual alpha at that pixel.
   const mask = _getAlphaMask(obj);
   if (!mask) return true; // fallback: treat as opaque
@@ -894,10 +899,12 @@ function _onPointerDown(evt) {
 
   // Edit mode: the item being edited always drags, zoomed or not. Dragging
   // anywhere else pans when zoomed (so the user can reposition their view
-  // mid-edit) or does nothing when not zoomed.
+  // mid-edit) or does nothing when not zoomed. Bbox-only hit test here so
+  // mostly-transparent / mostly-white images can still be grabbed anywhere
+  // inside their rectangle — alpha masks exclude the padding pixels.
   if (editing) {
     const edited = state.selectedId ? findObject(state.selectedId) : null;
-    if (edited && _pointInsideObject(world.x, world.y, edited)) {
+    if (edited && _pointInsideObject(world.x, world.y, edited, true)) {
       drag = {
         id: edited.id,
         offsetX: world.x - edited.position.x,
