@@ -1346,11 +1346,18 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .edit-top { padding: 0; }
 }
 
-/* Edit menu no-scroll pass: shrink the edit-mode controls so the
-   joystick + action stack + sub-tool row + rotate slider + bottom
-   row all fit inside the bottom panel's height on mobile without
-   the user having to scroll. Applies only to edit mode so other
-   panel modes (empty / selected / advanced) stay untouched. */
+/* Edit menu no-scroll pass: shrink the edit-mode controls so every
+   row (joystick + action-stack + subtool + rotate + bottom/DONE)
+   fits inside the bottom panel's height on mobile. Scoped to edit
+   mode only so other panel modes (empty/selected/advanced) stay
+   untouched. Combines per-element size cuts with a CSS zoom pass
+   for final shrink — zoom affects layout (unlike transform: scale)
+   so the panel actually takes less vertical space rather than
+   leaving a gap where the pre-scaled box used to live. */
+.mode[data-mode="edit"] { overflow-y: hidden; }
+@media (max-height: 860px) {
+  .mode[data-mode="edit"] { zoom: 0.92; }
+}
 @media (max-height: 760px) {
   .mode[data-mode="edit"] .controller {
     grid-template-columns: 32px 84px 32px;
@@ -1368,7 +1375,7 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .mode[data-mode="edit"] .action-stack .round-btn,
   .mode[data-mode="edit"] .action-stack .icon-btn { width: 38px; height: 38px; }
   .mode[data-mode="edit"] .action-stack .round-btn { font-size: 14px; }
-  .mode[data-mode="edit"] { gap: 3px; overflow-y: hidden; }
+  .mode[data-mode="edit"] { gap: 3px; zoom: 0.82; }
   .mode[data-mode="edit"] .subtool-row .btn-pill {
     font-size: 10px; padding: 3px 5px;
   }
@@ -1392,6 +1399,7 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .mode[data-mode="edit"] .action-stack .round-btn,
   .mode[data-mode="edit"] .action-stack .icon-btn { width: 34px; height: 34px; }
   .mode[data-mode="edit"] .edit-bottom .btn-icon { width: 32px; height: 32px; }
+  .mode[data-mode="edit"] { zoom: 0.7; }
 }
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {

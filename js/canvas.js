@@ -542,7 +542,7 @@ function _drawObject(obj) {
   // alpha silhouette (no outline, transparent PNG regions stay clear).
   if (obj.id === state.selectedId) {
     ctx.shadowColor = "rgba(80, 150, 255, 0.93)";
-    ctx.shadowBlur = 27;
+    ctx.shadowBlur = 54;
   }
   ctx.drawImage(source, -w / 2, -h / 2, w, h);
   ctx.restore();

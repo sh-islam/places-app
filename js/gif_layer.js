@@ -108,7 +108,7 @@ function _buildMatrix(obj, w, h, rect) {
 function _composeFilter(obj, selected) {
   const base = filterStringFor(obj);
   const baseStr = base === "none" ? "" : base;
-  const glow = selected ? "drop-shadow(0 0 12px rgba(80, 150, 255, 0.93))" : "";
+  const glow = selected ? "drop-shadow(0 0 24px rgba(80, 150, 255, 0.93))" : "";
   const out = [baseStr, glow].filter(Boolean).join(" ");
   return out || "none";
 }
