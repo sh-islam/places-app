@@ -129,13 +129,15 @@ function _imgFilter(obj) {
 // A fully-opaque (alpha 1) and slightly-more-saturated-blue swatch
 // lands on the same "blue glow" impression as the canvas PNGs.
 function _wrapFilter(selected) {
-  // Two stacked 72-CSS-px drop-shadows. Stacking applies the shadow
-  // pass twice, so the halo reads roughly twice as dense as a
-  // single pass at the same radius — canvas PNGs stay on their own
-  // single-pass 54 × dpr path, GIFs get a visibly stronger glow.
+  // Two passes with different radii: a tight 20-px inner shadow
+  // adds density right at the silhouette edge (reads as a bright
+  // blue outline), and a 54-px outer shadow extends the halo the
+  // same distance as the canvas PNG glow. Net effect is a stronger
+  // glow at the item's edge without the halo reaching further out
+  // than the PNG selection does.
   return selected
-    ? "drop-shadow(0 0 72px rgb(80, 150, 255))"
-      + " drop-shadow(0 0 72px rgb(80, 150, 255))"
+    ? "drop-shadow(0 0 20px rgb(80, 150, 255))"
+      + " drop-shadow(0 0 54px rgb(80, 150, 255))"
     : "";
 }
 
