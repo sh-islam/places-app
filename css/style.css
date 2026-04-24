@@ -1345,6 +1345,54 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .panel-header { padding: 2px 0 4px; margin-bottom: 6px; }
   .edit-top { padding: 0; }
 }
+
+/* Edit menu no-scroll pass: shrink the edit-mode controls so the
+   joystick + action stack + sub-tool row + rotate slider + bottom
+   row all fit inside the bottom panel's height on mobile without
+   the user having to scroll. Applies only to edit mode so other
+   panel modes (empty / selected / advanced) stay untouched. */
+@media (max-height: 760px) {
+  .mode[data-mode="edit"] .controller {
+    grid-template-columns: 32px 84px 32px;
+    grid-template-rows:    32px 84px 32px;
+    gap: 2px;
+  }
+  .mode[data-mode="edit"] .joystick      { width: 84px; height: 84px; }
+  .mode[data-mode="edit"] .joystick-knob { width: 36px; height: 36px; }
+  .mode[data-mode="edit"] .dpad-btn      { width: 32px; height: 32px; font-size: 11px; }
+  .mode[data-mode="edit"] .action-stack {
+    grid-template-columns: 38px 38px;
+    grid-auto-rows: 38px;
+    gap: 3px 8px;
+  }
+  .mode[data-mode="edit"] .action-stack .round-btn,
+  .mode[data-mode="edit"] .action-stack .icon-btn { width: 38px; height: 38px; }
+  .mode[data-mode="edit"] .action-stack .round-btn { font-size: 14px; }
+  .mode[data-mode="edit"] { gap: 3px; overflow-y: hidden; }
+  .mode[data-mode="edit"] .subtool-row .btn-pill {
+    font-size: 10px; padding: 3px 5px;
+  }
+  /* Fine-rotation slider is redundant next to the 90° rotate
+     buttons on short screens — drop it to reclaim the row. */
+  .mode[data-mode="edit"] .rotate-row { display: none; }
+  .mode[data-mode="edit"] .edit-bottom .btn-icon { width: 36px; height: 36px; }
+}
+@media (max-height: 640px) {
+  .mode[data-mode="edit"] .controller {
+    grid-template-columns: 28px 72px 28px;
+    grid-template-rows:    28px 72px 28px;
+  }
+  .mode[data-mode="edit"] .joystick      { width: 72px; height: 72px; }
+  .mode[data-mode="edit"] .joystick-knob { width: 32px; height: 32px; }
+  .mode[data-mode="edit"] .dpad-btn      { width: 28px; height: 28px; font-size: 10px; }
+  .mode[data-mode="edit"] .action-stack {
+    grid-template-columns: 34px 34px;
+    grid-auto-rows: 34px;
+  }
+  .mode[data-mode="edit"] .action-stack .round-btn,
+  .mode[data-mode="edit"] .action-stack .icon-btn { width: 34px; height: 34px; }
+  .mode[data-mode="edit"] .edit-bottom .btn-icon { width: 32px; height: 32px; }
+}
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {
   width: 42px;
