@@ -31,6 +31,14 @@ let _renderFit = null;       // {scale, offsetX, offsetY, renderedW, renderedH}
 // Enabled by default at hue 0 → near-black (hsl(0, 30%, 6%)).
 let _bgEnabled = true;
 let _bgHue = 0;
+// Save-as-copy form refs (resolved during initAdvancedEdit).
+let _copyForm = null;
+let _copyCatInput = null;
+let _copySubInput = null;
+let _copyCatChipsEl = null;
+let _copySubChipsEl = null;
+let _copyNameInput = null;
+let _statusEl = null;
 
 
 export function initAdvancedEdit() {
@@ -42,6 +50,18 @@ export function initAdvancedEdit() {
   document.getElementById("adv-back-btn")?.addEventListener("click", _back);
   document.getElementById("adv-revert-btn")?.addEventListener("click", _revert);
   document.getElementById("adv-save-btn")?.addEventListener("click", _save);
+  document.getElementById("adv-save-copy-btn")?.addEventListener("click", _openCopyForm);
+  document.getElementById("adv-copy-cancel")?.addEventListener("click", _closeCopyForm);
+  document.getElementById("adv-copy-confirm")?.addEventListener("click", _saveCopy);
+
+  _copyForm        = document.getElementById("adv-copy-form");
+  _copyCatInput    = document.getElementById("adv-copy-cat");
+  _copySubInput    = document.getElementById("adv-copy-sub");
+  _copyCatChipsEl  = document.getElementById("adv-copy-cat-chips");
+  _copySubChipsEl  = document.getElementById("adv-copy-sub-chips");
+  _copyNameInput   = document.getElementById("adv-copy-name");
+  _statusEl        = document.getElementById("adv-status");
+
   for (const btn of document.querySelectorAll(".adv-tool-btn")) {
     btn.addEventListener("click", () => _setTool(btn.dataset.tool));
   }
@@ -101,6 +121,8 @@ async function _enter() {
   const { setMode } = await import("./panel.js");
   setMode("advanced-edit");
   _setTool(null);
+  _setStatus("", null);
+  _closeCopyForm();
   _rerender();
   _updateSaveButton();
 }
@@ -141,6 +163,8 @@ function _cleanupState() {
   }
   const controls = document.getElementById("adv-tool-controls");
   if (controls) controls.innerHTML = "";
+  _closeCopyForm();
+  _setStatus("", null);
   _updateSaveButton();
 }
 
@@ -167,6 +191,7 @@ async function _save() {
   const btn = document.getElementById("adv-save-btn");
   btn.disabled = true;
   btn.textContent = "Saving...";
+  _setStatus("Saving...", null);
   try {
     const dataUrl = _workCanvas.toDataURL("image/png");
     const res = await api.overwriteCatalogItem(_sourceUrl, dataUrl);
@@ -196,12 +221,155 @@ async function _save() {
     // changed (crop / shear / warp). Mark the room dirty so the scene
     // save flushes whatever layout was in flight.
     markDirty();
+    _setStatus(`Overwritten ${_sourceUrl}`, "ok");
   } catch (err) {
-    alert(`Save failed: ${err.message}`);
+    _setStatus(`Save failed: ${err.message}`, "err");
   } finally {
     btn.textContent = "Save Image";
     _updateSaveButton();
   }
+}
+
+
+// ---------- Save as copy ----------
+
+function _openCopyForm() {
+  if (!_workCanvas || !_sourceUrl) return;
+  _copyForm.hidden = false;
+  const [curCat, curSub, curName] = _parseUrl(_sourceUrl);
+  _copyCatInput.value = curCat;
+  _copySubInput.value = curSub;
+  _renderCopyCatChips();
+  _renderCopySubChips();
+  _copyNameInput.value = _nextFreeCopyName(curName, curCat, curSub);
+  _copyNameInput.focus();
+  _copyNameInput.select();
+}
+
+
+function _closeCopyForm() {
+  if (!_copyForm) return;
+  _copyForm.hidden = true;
+}
+
+
+async function _saveCopy() {
+  if (!_workCanvas) return;
+  const cat  = _slug(_copyCatInput.value);
+  const sub  = _slug(_copySubInput.value);
+  const name = _slug(_copyNameInput.value);
+  if (!cat || !sub || !name) {
+    _setStatus("Category, subcategory and name are all required.", "err");
+    return;
+  }
+
+  const confirmBtn = document.getElementById("adv-copy-confirm");
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = "Saving...";
+  _setStatus("Saving copy...", null);
+  try {
+    // Canvas → Blob (avoid the base64 round-trip of toDataURL on big
+    // images). /api/catalog/upload expects a multipart image field.
+    const blob = await new Promise((res) =>
+      _workCanvas.toBlob((b) => res(b), "image/png"));
+    if (!blob) throw new Error("toBlob failed");
+    // overwrite stays off so the backend auto-bumps to _N+1 if the
+    // frontend guess happened to collide (another admin just uploaded).
+    const res = await api.uploadCatalogItem({
+      image: blob, category: cat, subcategory: sub, name, overwrite: false,
+    });
+
+    // Refresh catalog state so the new item appears in the drawer.
+    const c = await api.catalog();
+    state.catalog = c.items;
+    state.categories = c.categories;
+    const { rebuildCatalog } = await import("./catalog.js");
+    rebuildCatalog();
+
+    _closeCopyForm();
+    _setStatus(`Copy saved to ${res.url}`, "ok");
+  } catch (err) {
+    _setStatus(`Copy failed: ${err.message}`, "err");
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Save Copy";
+  }
+}
+
+
+// Pick the first `<currentName>_<N>` (starting at N=2) that isn't in
+// the catalog for this cat/sub. Backend does its own collision bump,
+// but we prefill a best guess so the admin doesn't have to edit the name.
+function _nextFreeCopyName(currentName, cat, sub) {
+  const prefix = `/catalog/${cat}/${sub}/`;
+  const existing = new Set(
+    (state.catalog || [])
+      .filter((it) => (it.url || "").startsWith(prefix))
+      .map((it) => it.url.slice(prefix.length).replace(/\.[^.]+$/, ""))
+  );
+  let n = 2;
+  while (existing.has(`${currentName}_${n}`)) n++;
+  return `${currentName}_${n}`;
+}
+
+
+function _renderCopyCatChips() {
+  const cats = Object.keys(state.categories || {}).sort();
+  _buildCopyChips(_copyCatChipsEl, cats, _copyCatInput, (v) => {
+    _copySubInput.value = "";
+    _renderCopySubChips();
+  });
+}
+
+
+function _renderCopySubChips() {
+  const cat = _copyCatInput.value;
+  const subs = (state.categories && state.categories[cat]) || [];
+  _buildCopyChips(_copySubChipsEl, subs, _copySubInput);
+}
+
+
+// Inline chip builder (same idea as settings/upload + recategorize, but
+// these chips don't need the "+ New" escape hatch — admins can always
+// edit the name/cat/sub freely via the hidden inputs via the chip they
+// pick. Kept intentionally small so there's no cross-module coupling.)
+function _buildCopyChips(container, items, hiddenInput, onSelect) {
+  container.innerHTML = "";
+  items.forEach((val) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip" + (hiddenInput.value === val ? " active" : "");
+    chip.textContent = _label(val);
+    chip.addEventListener("click", () => {
+      hiddenInput.value = val;
+      container.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+      chip.classList.add("active");
+      if (onSelect) onSelect(val);
+    });
+    container.appendChild(chip);
+  });
+}
+
+
+function _parseUrl(url) {
+  // "/catalog/<cat>/<sub>/<name>.png" -> [cat, sub, name]
+  const parts = (url || "").replace(/^\/catalog\//, "").split("/");
+  const cat = parts[0] || "";
+  const sub = parts[1] || "";
+  const name = (parts[2] || "").replace(/\.[^.]+$/, "");
+  return [cat, sub, name];
+}
+
+
+function _slug(s) {
+  return (s || "").trim().toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+
+function _label(s) {
+  return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 
@@ -217,9 +385,21 @@ function _loadFresh(origUrl, version) {
 
 
 function _updateSaveButton() {
-  const btn = document.getElementById("adv-save-btn");
-  if (!btn) return;
-  btn.disabled = !_dirty;
+  const saveBtn = document.getElementById("adv-save-btn");
+  if (saveBtn) saveBtn.disabled = !_dirty;
+  // Save-as-copy is enabled whenever we've loaded a work canvas — you
+  // can save a copy of an untouched image too (useful for duplicating a
+  // catalog entry as a starting point).
+  const copyBtn = document.getElementById("adv-save-copy-btn");
+  if (copyBtn) copyBtn.disabled = !_workCanvas;
+}
+
+
+function _setStatus(msg, kind /* "ok" | "err" | null */) {
+  if (!_statusEl) return;
+  _statusEl.textContent = msg || "";
+  _statusEl.classList.toggle("ok",  kind === "ok");
+  _statusEl.classList.toggle("err", kind === "err");
 }
 
 

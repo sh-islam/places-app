@@ -1366,6 +1366,38 @@ body.adv-editing .room-dots { display: none !important; }
 }
 #adv-save-btn:not(:disabled):hover { background: #a93226; }
 
+/* Save-as-copy form — shown inline under the action rows when admin
+   clicks "Save as copy". Chip groups reuse the settings upload form's
+   .chip / .chip-group / .upload-field styles. */
+.adv-copy-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--btn-bg);
+}
+.adv-copy-form[hidden] { display: none; }
+.adv-copy-name-input {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-size: 13px;
+}
+.adv-copy-name-input:focus { outline: none; border-color: var(--accent); }
+
+.adv-status {
+  margin: 6px 0 0;
+  min-height: 16px;
+  text-align: right;
+}
+.adv-status.ok  { color: #7fd07f; }
+.adv-status.err { color: #e08585; }
+
 /* Overlay element that sits on top of the scene canvas while editing.
    Tools parent their handles/cursors into this. Ignores pointer events
    until a tool takes over. */

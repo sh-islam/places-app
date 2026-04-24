@@ -238,6 +238,34 @@
         <div class="action-row adv-actions">
           <button id="adv-save-btn" class="btn-pill" disabled>Save Image</button>
         </div>
+        <div class="action-row adv-actions">
+          <button id="adv-save-copy-btn" class="btn-pill" disabled>Save as copy</button>
+        </div>
+        <!-- Save-as-copy form. Hidden by default; pops open under the
+             action buttons when admin clicks "Save as copy". Chip groups
+             reuse the settings/upload-form pattern; name is prefilled
+             with the next collision-free suffix. -->
+        <div id="adv-copy-form" class="adv-copy-form" hidden>
+          <div class="upload-field">
+            <span>Category</span>
+            <div class="chip-group" id="adv-copy-cat-chips"></div>
+            <input id="adv-copy-cat" type="hidden"/>
+          </div>
+          <div class="upload-field">
+            <span>Subcategory</span>
+            <div class="chip-group" id="adv-copy-sub-chips"></div>
+            <input id="adv-copy-sub" type="hidden"/>
+          </div>
+          <div class="upload-field">
+            <span>Name</span>
+            <input id="adv-copy-name" type="text" placeholder="e.g. cat_3_2" class="adv-copy-name-input"/>
+          </div>
+          <div class="adv-apply-row">
+            <button type="button" id="adv-copy-cancel" class="btn-pill">Cancel</button>
+            <button type="button" id="adv-copy-confirm" class="btn-pill primary">Save Copy</button>
+          </div>
+        </div>
+        <p id="adv-status" class="adv-status muted small" aria-live="polite"></p>
       </div>
 
       <!-- Bottom nav -->
