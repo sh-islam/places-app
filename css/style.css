@@ -955,8 +955,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
    size so a narrow parent cell can't force it to stack either. */
 .controller {
   display: grid;
-  grid-template-columns: 40px 128px 40px;
-  grid-template-rows:    40px 128px 40px;
+  grid-template-columns: 44px 128px 44px;
+  grid-template-rows:    44px 128px 44px;
   grid-template-areas:
     ". up ."
     "lt jk rt"
@@ -969,8 +969,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 /* Simplistic arrow buttons — flat, minimal. The joystick is the
    visual star; these are just the nudge controls. */
 .dpad-btn {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--btn-bg);
