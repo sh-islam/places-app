@@ -51,6 +51,11 @@ export function initControls() {
     if (shearBtn) shearBtn.classList.remove("active");
     if (warpBtn)  warpBtn.classList.remove("active");
     setMode("selected");
+    // Redraw the scene without handles / dashed bbox + flush room
+    // changes (shear / warp / rotate / scale / etc.) to the server so
+    // the user doesn't need to hit SAVE separately after every edit.
+    render();
+    if (state.dirty) _saveRoom();
   });
 
   document.querySelector(".panel").addEventListener("click", _onPanelClick);
@@ -68,10 +73,11 @@ export function initControls() {
 // ---------- Per-instance deform sub-tools (shear / warp) ----------
 
 function _initSubTools() {
-  const shearBtn = document.getElementById("subtool-shear-btn");
-  const warpBtn  = document.getElementById("subtool-warp-btn");
-  const resetBtn = document.getElementById("subtool-reset-btn");
-  if (!shearBtn || !warpBtn || !resetBtn) return;
+  const shearBtn  = document.getElementById("subtool-shear-btn");
+  const warpBtn   = document.getElementById("subtool-warp-btn");
+  const resetBtn  = document.getElementById("subtool-reset-btn");
+  const revertBtn = document.getElementById("subtool-revert-btn");
+  if (!shearBtn || !warpBtn || !resetBtn || !revertBtn) return;
 
   function sync() {
     shearBtn.classList.toggle("active", state.editSubTool === "shear");
@@ -88,7 +94,27 @@ function _initSubTools() {
     sync();
     render();
   });
+
+  // Reset: scoped to whichever sub-tool is active. With no sub-tool
+  // active, Reset is a no-op (users who want a full wipe click Revert).
   resetBtn.addEventListener("click", () => {
+    const id = state.selectedId;
+    const obj = id ? findObject(id) : null;
+    if (!obj) return;
+    if (state.editSubTool === "shear" && obj.shear) {
+      delete obj.shear;
+      markDirty();
+    } else if (state.editSubTool === "warp" && obj.warp) {
+      delete obj.warp;
+      markDirty();
+    }
+    render();
+  });
+
+  // Revert to original: wipes BOTH shear and warp regardless of which
+  // sub-tool (if any) is active. The image renders straight from the
+  // catalog bytes again.
+  revertBtn.addEventListener("click", () => {
     const id = state.selectedId;
     const obj = id ? findObject(id) : null;
     if (!obj) return;

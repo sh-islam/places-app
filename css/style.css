@@ -932,7 +932,10 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 
 /* Two equal columns so the controller on the left and the action stack on
    the right each own half the panel width — keeps the right stack visually
-   balanced instead of hugging the controller. */
+   balanced instead of hugging the controller. flex:1 lets this area
+   absorb whatever vertical space is left in the edit-mode panel so the
+   joystick + action-stack cluster sits lower and bigger rather than
+   being pinned at the top with whitespace underneath. */
 .edit-top {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -940,6 +943,7 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   align-items: center;
   justify-items: center;
   padding: 4px 0;
+  flex: 1 1 auto;
 }
 
 /* Left-side controller cluster: analog joystick + 4-dir d-pad stacked */
@@ -953,8 +957,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 /* 4-direction step-nudge pad — styled to match the analog joystick */
 .dpad {
   display: grid;
-  grid-template-columns: 26px 26px 26px;
-  grid-template-rows: 26px 26px 26px;
+  grid-template-columns: 32px 32px 32px;
+  grid-template-rows: 32px 32px 32px;
   gap: 3px;
   padding: 6px;
   background:
@@ -996,8 +1000,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 
 /* Joystick */
 .joystick {
-  width: 112px;
-  height: 112px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 50% 40%, #2f333b 0%, var(--btn-bg) 75%, var(--bg-base) 100%);
@@ -1012,8 +1016,8 @@ body.adv-editing .adv-zoom-controls { display: flex; }
 }
 .joystick.active { cursor: grabbing; }
 .joystick-knob {
-  width: 48px;
-  height: 48px;
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
   background:
     radial-gradient(circle at 35% 30%, #8a9098 0%, #545862 60%, #2f333b 100%);
@@ -1035,16 +1039,16 @@ body.adv-editing .adv-zoom-controls { display: flex; }
    Sized to match the joystick+dpad column height so no side looks empty. */
 .action-stack {
   display: grid;
-  grid-template-columns: 46px 46px;
-  grid-auto-rows: 46px;
+  grid-template-columns: 54px 54px;
+  grid-auto-rows: 54px;
   gap: 6px 14px;
   align-self: center;
   justify-self: center;
 }
 .action-stack .round-btn,
 .action-stack .icon-btn {
-  width: 46px;
-  height: 46px;
+  width: 54px;
+  height: 54px;
 }
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {
