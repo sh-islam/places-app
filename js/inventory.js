@@ -17,6 +17,7 @@ import { assetUrl } from "./config.js";
 let drawerEl = null;
 let toggleBtn = null;
 let listEl = null;
+let backdropEl = null;
 let renderScene = null;
 let refreshPanel = null;
 let sortOrder = "asc";  // "asc" | "desc"
@@ -37,6 +38,7 @@ export function initInventory({
   drawerEl = drawer;
   toggleBtn = toggle;
   listEl = list;
+  backdropEl = backdrop;
   renderScene = onChange;
   refreshPanel = onPanelReset;
 
@@ -130,23 +132,35 @@ function _buildRow(obj) {
 
 
 function _onListClick(e) {
-  const btn = e.target.closest("button[data-inv-action]");
-  if (!btn) return;
-  const row = btn.closest(".inv-item");
+  const row = e.target.closest(".inv-item");
   if (!row) return;
   const id = row.dataset.id;
   const obj = findObject(id);
   if (!obj) return;
 
-  switch (btn.dataset.invAction) {
-    case "center": _centerObject(obj); break;
-    case "visibility": toggleVisibility(id); _renderList(); break;
-    case "front":  bringForward(id); break;
-    case "remove": confirmRemoveObject(id); break;
+  // Action-button click: run the action as before. Clicks on the row
+  // itself (outside any action button) fall through to the row-select
+  // flow below.
+  const btn = e.target.closest("button[data-inv-action]");
+  if (btn) {
+    switch (btn.dataset.invAction) {
+      case "center": _centerObject(obj); break;
+      case "visibility": toggleVisibility(id); _renderList(); break;
+      case "front":  bringForward(id); break;
+      case "remove": confirmRemoveObject(id); break;
+    }
+    _renderList();
+    if (refreshPanel) refreshPanel();
+    if (renderScene) renderScene();
+    return;
   }
-  _renderList();
+
+  // Bare row click: select the item on canvas (same effect as tapping
+  // it directly — glow + selected-mode panel) and drop the drawer.
+  state.selectedId = id;
   if (refreshPanel) refreshPanel();
   if (renderScene) renderScene();
+  _setOpen(false, backdropEl);
 }
 
 

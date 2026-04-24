@@ -70,6 +70,7 @@ export function initCanvas(canvasEl) {
   });
   _wirePointer();
   _wireDropFromCatalog();
+  _syncZoomButtons();
 }
 
 
@@ -130,6 +131,7 @@ export function resetView() {
   state.view.zoom = 1;
   state.view.panX = 0;
   state.view.panY = 0;
+  _syncZoomButtons();
   render();
 }
 
@@ -137,7 +139,38 @@ function _setZoom(nextZoom) {
   const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
   state.view.zoom = z;
   _clampPan();
+  _syncZoomButtons();
   render();
+}
+
+// Zoom that keeps a given screen point (sx, sy) anchored — i.e. the
+// world coord under the cursor stays under the cursor after zoom.
+// Used by wheel + pinch.
+function _setZoomAt(nextZoom, sx, sy) {
+  const z = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoom));
+  if (z === state.view.zoom) return;
+  const rect = canvas.getBoundingClientRect();
+  const world = _screenToWorld(sx, sy);
+  const { fit, offsetX, offsetY } = _fitMetrics(rect);
+  const cx = rect.width / 2, cy = rect.height / 2;
+  const slX = offsetX + fit * world.x;
+  const slY = offsetY + fit * world.y;
+  state.view.zoom = z;
+  state.view.panX = sx - cx - z * (slX - cx);
+  state.view.panY = sy - cy - z * (slY - cy);
+  _clampPan();
+  _syncZoomButtons();
+  render();
+}
+
+// Grey out zoom in/out buttons at the respective limits so users get
+// a visual cue that they can't go further. Called every time zoom
+// changes; cheap enough to run on every _setZoom / wheel frame.
+function _syncZoomButtons() {
+  const inBtn  = document.getElementById("zoom-in-btn");
+  const outBtn = document.getElementById("zoom-out-btn");
+  if (inBtn)  inBtn.disabled  = state.view.zoom >= MAX_ZOOM - 1e-6;
+  if (outBtn) outBtn.disabled = state.view.zoom <= MIN_ZOOM + 1e-6;
 }
 
 function _clampPan() {
@@ -584,6 +617,23 @@ function _wirePointer() {
   canvas.addEventListener("pointercancel", _onPointerUp);
   canvas.addEventListener("pointerleave", _onPointerUp);
   _wirePinchZoom();
+  _wireWheelZoom();
+}
+
+// Desktop wheel-zoom: scrolling while hovering the canvas zooms the
+// composite. Anchors to cursor position so the world point under the
+// pointer stays put under the pointer. deltaY is mapped through exp()
+// so the zoom curve is smooth and proportional regardless of whether
+// the browser reports pixels, lines, or pages.
+function _wireWheelZoom() {
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const factor = Math.exp(-e.deltaY * 0.001);
+    _setZoomAt(state.view.zoom * factor, sx, sy);
+  }, { passive: false });
 }
 
 function _screenCoords(evt) {
@@ -814,6 +864,7 @@ function _wirePinchZoom() {
     state.view.panX = scx - cx - nextZoom * (slX - cx);
     state.view.panY = scy - cy - nextZoom * (slY - cy);
     _clampPan();
+    _syncZoomButtons();
     render();
   }, { passive: false });
 

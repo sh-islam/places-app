@@ -349,6 +349,12 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .zoom-btn:hover { background: rgba(0, 0, 0, 0.75); }
 .zoom-btn:active { transform: translateY(1px); }
+.zoom-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+.zoom-btn:disabled:hover { background: rgba(0, 0, 0, 0.55); }
 .zoom-reset { font-size: 16px; }
 
 .scene.ui-hidden .zoom-controls,
@@ -724,7 +730,9 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 8px;
+  cursor: pointer;
 }
+.inv-item:hover { background: var(--btn-hover); }
 .inv-item img {
   width: 40px;
   height: 40px;
