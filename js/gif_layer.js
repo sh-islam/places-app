@@ -122,9 +122,15 @@ function _imgFilter(obj) {
 // 54-CSS-px halo isn't scaled by the img's transform. Canvas
 // shadowBlur is naturally transform-independent so this keeps both
 // rendering paths producing the same visible halo width.
+//
+// Colour needs a tiny bump over the canvas value: CSS drop-shadow
+// dilutes the hue slightly because of how it composites blurred
+// alpha (leaves highlights reading more white than blue in practice).
+// A fully-opaque (alpha 1) and slightly-more-saturated-blue swatch
+// lands on the same "blue glow" impression as the canvas PNGs.
 function _wrapFilter(selected) {
   return selected
-    ? "drop-shadow(0 0 54px rgba(80, 150, 255, 0.93))"
+    ? "drop-shadow(0 0 54px rgb(80, 150, 255))"
     : "";
 }
 
