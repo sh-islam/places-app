@@ -4,12 +4,14 @@ import { state, markDirty } from "./state.js";
 import { getCachedImage, loadImage } from "./images.js";
 import {
   addObject,
+  clearSnapshot,
   createFromCatalog,
   DEFAULT_ADJUSTMENTS,
   filterStringFor,
   findObject,
   moveObject,
   objectsByLayerAsc,
+  revertObject,
 } from "./objects.js";
 import { getMode, refreshForSelection, setMode } from "./panel.js";
 import { nextRoom, prevRoom } from "./rooms.js";
@@ -905,6 +907,37 @@ function _onPointerUp(evt) {
     }
     subDrag = null;
     return;
+  }
+  // Edit-mode tap on a DIFFERENT object: exit edit, revert the
+  // currently-edited object to its pre-edit snapshot, and switch
+  // selection. Users asked to be able to jump to another item mid-
+  // edit instead of having to DONE out first. Only fires when this
+  // pointer didn't drag or pan anything, and only when the tap
+  // lands on a real object that isn't the one being edited.
+  if (getMode() === "edit" && !drag && (!pan || !pan.moved)) {
+    const scr = _screenCoords(evt);
+    const wld = _screenToWorld(scr.x, scr.y);
+    const hit = _hitTest(wld.x, wld.y);
+    if (hit && hit.id !== state.selectedId) {
+      if (state.selectedId) {
+        revertObject(state.selectedId);
+        clearSnapshot(state.selectedId);
+      }
+      state.selectedId = hit.id;
+      state.editSubTool = null;
+      const shearBtn = document.getElementById("subtool-shear-btn");
+      const warpBtn  = document.getElementById("subtool-warp-btn");
+      if (shearBtn) shearBtn.classList.remove("active");
+      if (warpBtn)  warpBtn.classList.remove("active");
+      setMode("selected");
+      refreshForSelection();
+      render();
+      if ((drag || pan) && canvas.hasPointerCapture(evt.pointerId)) {
+        canvas.releasePointerCapture(evt.pointerId);
+      }
+      drag = null; pan = null; swipe = null;
+      return;
+    }
   }
   // Tap-without-drag while zoomed → treat as a selection so the user can
   // inspect items at any zoom. Skipped while editing so we don't swap the

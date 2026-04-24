@@ -100,6 +100,14 @@ export function revertObject(id) {
   o.rotation_z = snap.rotation_z;
   o.layer = snap.layer;
   o.adjustments = { ...(snap.adjustments || DEFAULT_ADJUSTMENTS) };
+  // Shear and warp also live per-instance and mutate during edit —
+  // include them here so Undo/revert really restores the pre-edit
+  // state end-to-end. Snapshot may or may not carry these fields
+  // depending on whether the object had them when edit started.
+  if (snap.shear) o.shear = { ...snap.shear };
+  else delete o.shear;
+  if (snap.warp)  o.warp  = JSON.parse(JSON.stringify(snap.warp));
+  else delete o.warp;
   markDirty();
 }
 
