@@ -1351,60 +1351,69 @@ body.adv-editing .adv-zoom-controls { display: flex; }
   .edit-top { padding: 0; }
 }
 
-/* Edit menu no-scroll pass: shrink the edit-mode controls so every
-   row (joystick + action-stack + subtool + rotate + bottom/DONE)
-   fits inside the bottom panel's height on mobile. Scoped to edit
-   mode only so other panel modes (empty/selected/advanced) stay
-   untouched. Combines per-element size cuts with a CSS zoom pass
-   for final shrink — zoom affects layout (unlike transform: scale)
-   so the panel actually takes less vertical space rather than
-   leaving a gap where the pre-scaled box used to live. */
-.mode[data-mode="edit"] { overflow-y: hidden; }
+/* Edit menu no-scroll pass: shrink every control in edit mode
+   aggressively per-element so the whole panel (joystick + action
+   stack + subtool + bottom/DONE) fits inside the short mobile
+   panel without needing to scroll. Scoped to edit mode only.
+   We do NOT use CSS zoom here — iOS Safari is unreliable with
+   zoom on flex children. Scroll is left as a safety net (no
+   overflow: hidden) so even on the rarest phone where shrink
+   isn't enough the user can still reach DONE by scrolling. */
 @media (max-height: 860px) {
-  .mode[data-mode="edit"] { zoom: 0.87; }
+  /* Mid-height phones (≈ Pixel 7a, iPhone 15): already covered
+     by per-element rules below; nothing extra needed here. */
 }
 @media (max-height: 760px) {
   .mode[data-mode="edit"] .controller {
-    grid-template-columns: 32px 84px 32px;
-    grid-template-rows:    32px 84px 32px;
+    grid-template-columns: 22px 64px 22px;
+    grid-template-rows:    22px 64px 22px;
     gap: 2px;
   }
-  .mode[data-mode="edit"] .joystick      { width: 84px; height: 84px; }
-  .mode[data-mode="edit"] .joystick-knob { width: 36px; height: 36px; }
-  .mode[data-mode="edit"] .dpad-btn      { width: 32px; height: 32px; font-size: 11px; }
+  .mode[data-mode="edit"] .joystick      { width: 64px; height: 64px; }
+  .mode[data-mode="edit"] .joystick-knob { width: 28px; height: 28px; }
+  .mode[data-mode="edit"] .dpad-btn      { width: 22px; height: 22px; font-size: 9px; }
   .mode[data-mode="edit"] .action-stack {
-    grid-template-columns: 38px 38px;
-    grid-auto-rows: 38px;
-    gap: 3px 8px;
+    grid-template-columns: 30px 30px;
+    grid-auto-rows: 30px;
+    gap: 2px 6px;
   }
   .mode[data-mode="edit"] .action-stack .round-btn,
-  .mode[data-mode="edit"] .action-stack .icon-btn { width: 38px; height: 38px; }
-  .mode[data-mode="edit"] .action-stack .round-btn { font-size: 14px; }
-  .mode[data-mode="edit"] { gap: 3px; zoom: 0.78; }
+  .mode[data-mode="edit"] .action-stack .icon-btn { width: 30px; height: 30px; }
+  .mode[data-mode="edit"] .action-stack .round-btn { font-size: 12px; }
+  .mode[data-mode="edit"] { gap: 2px; }
   .mode[data-mode="edit"] .subtool-row .btn-pill {
-    font-size: 10px; padding: 3px 5px;
+    font-size: 9px; padding: 2px 4px;
   }
   /* Fine-rotation slider is redundant next to the 90° rotate
      buttons on short screens — drop it to reclaim the row. */
   .mode[data-mode="edit"] .rotate-row { display: none; }
-  .mode[data-mode="edit"] .edit-bottom .btn-icon { width: 36px; height: 36px; }
+  .mode[data-mode="edit"] .edit-bottom { padding-top: 0; }
+  .mode[data-mode="edit"] .edit-bottom .btn-icon {
+    width: 28px; height: 28px; font-size: 12px;
+  }
+  .mode[data-mode="edit"] .edit-bottom .btn-pill {
+    font-size: 11px; padding: 4px 10px;
+  }
+  .mode[data-mode="edit"] .panel-header { padding: 0; margin: 0; }
 }
 @media (max-height: 640px) {
   .mode[data-mode="edit"] .controller {
-    grid-template-columns: 28px 72px 28px;
-    grid-template-rows:    28px 72px 28px;
+    grid-template-columns: 18px 54px 18px;
+    grid-template-rows:    18px 54px 18px;
   }
-  .mode[data-mode="edit"] .joystick      { width: 72px; height: 72px; }
-  .mode[data-mode="edit"] .joystick-knob { width: 32px; height: 32px; }
-  .mode[data-mode="edit"] .dpad-btn      { width: 28px; height: 28px; font-size: 10px; }
+  .mode[data-mode="edit"] .joystick      { width: 54px; height: 54px; }
+  .mode[data-mode="edit"] .joystick-knob { width: 24px; height: 24px; }
+  .mode[data-mode="edit"] .dpad-btn      { width: 18px; height: 18px; font-size: 8px; }
   .mode[data-mode="edit"] .action-stack {
-    grid-template-columns: 34px 34px;
-    grid-auto-rows: 34px;
+    grid-template-columns: 26px 26px;
+    grid-auto-rows: 26px;
   }
   .mode[data-mode="edit"] .action-stack .round-btn,
-  .mode[data-mode="edit"] .action-stack .icon-btn { width: 34px; height: 34px; }
-  .mode[data-mode="edit"] .edit-bottom .btn-icon { width: 32px; height: 32px; }
-  .mode[data-mode="edit"] { zoom: 0.665; }
+  .mode[data-mode="edit"] .action-stack .icon-btn { width: 26px; height: 26px; }
+  .mode[data-mode="edit"] .edit-bottom .btn-icon { width: 24px; height: 24px; }
+  .mode[data-mode="edit"] .edit-bottom .btn-pill {
+    font-size: 10px; padding: 3px 8px;
+  }
 }
 .action-stack .round-btn { font-size: 20px; }
 .round-btn {
