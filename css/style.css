@@ -349,13 +349,20 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
 }
 .zoom-btn:hover { background: rgba(0, 0, 0, 0.75); }
 .zoom-btn:active { transform: translateY(1px); }
+/* Disabled state needs to read clearly on mobile Safari, which ignores
+   default disabled-button styling for custom-coloured buttons. Combine
+   opacity, grayscale, and a forced lighter bg so it's obviously muted. */
 .zoom-btn:disabled {
-  opacity: 0.35;
+  opacity: 0.28 !important;
+  filter: grayscale(1);
   cursor: default;
   pointer-events: none;
 }
 .zoom-btn:disabled:hover { background: rgba(0, 0, 0, 0.55); }
-.zoom-reset { font-size: 16px; }
+/* ⟲ is a text-style Unicode glyph that renders visually smaller than
+   the +/− chars at the same font-size. Bump it so the three zoom
+   buttons look consistent. */
+.zoom-reset { font-size: 22px; }
 
 .scene.ui-hidden .zoom-controls,
 .scene.ui-hidden .bg-picker-btn,
