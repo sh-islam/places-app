@@ -72,10 +72,23 @@ function _syncSortButtons() {
   if (nameBtn) nameBtn.classList.toggle("active", _sortMode === "name");
   if (timeBtn) timeBtn.classList.toggle("active", _sortMode === "time");
   if (dirBtn) {
-    dirBtn.textContent = _sortDir === "asc" ? "↑" : "↓";
-    dirBtn.title = _sortDir === "asc"
-      ? "Ascending (A→Z / oldest→newest). Click to flip."
-      : "Descending (Z→A / newest→oldest). Click to flip.";
+    // Arrow convention is per-mode, matching what "feels natural" for
+    // each sort: ↓ on alpha = A→Z (the default you'd reach for), ↓ on
+    // time = newest-first (the default you'd reach for). Swapping to ↑
+    // means the opposite direction. The underlying _sortDir semantics
+    // don't change — only the icon.
+    const downIsAsc = _sortMode !== "time";
+    const down = downIsAsc ? _sortDir === "asc" : _sortDir === "desc";
+    dirBtn.textContent = down ? "↓" : "↑";
+    if (_sortMode === "time") {
+      dirBtn.title = _sortDir === "desc"
+        ? "Newest first. Click to flip."
+        : "Oldest first. Click to flip.";
+    } else {
+      dirBtn.title = _sortDir === "asc"
+        ? "A→Z. Click to flip."
+        : "Z→A. Click to flip.";
+    }
   }
 }
 
