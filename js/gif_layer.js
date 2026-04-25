@@ -45,17 +45,26 @@ export function initGifLayer(el) {
 }
 
 
-export function isAnimatedGifObj(obj) {
-  // Treat .gif urls as animated by default. Single-frame GIFs would
-  // technically work fine on canvas too, but routing them through the
-  // overlay is harmless — and the upload path now keeps multi-frame
-  // GIFs as .gif while flattening single-frame ones to .png, so a
-  // .gif extension here is a strong signal that animation matters.
-  // Warped GIFs go back to canvas because CSS can't do 4-point warp.
+// True when the object should be rendered via the DOM overlay rather
+// than the canvas. Every non-warped object now goes through the
+// overlay (PNGs included) so CSS z-index can interleave PNGs and
+// GIFs across the whole scene by obj.layer. Warped items still need
+// canvas's pixel-remap pipeline so they stay on canvas. The currently-
+// edited item ALSO routes back to canvas while a shear/warp sub-tool
+// is active so the handles drawn on the canvas surface remain visible
+// (otherwise the overlay img sits on top of them).
+export function shouldRenderViaOverlay(obj) {
   if (!obj || !obj.url) return false;
-  if (!obj.url.toLowerCase().endsWith(".gif")) return false;
   if (obj.warp && obj.warp.corners) return false;
+  if (state.editSubTool && state.selectedId === obj.id) return false;
   return true;
+}
+
+// Stricter check used by the panel / shear / warp UI: just checks
+// the URL extension to decide whether to hide GIF-incompatible tools.
+export function isAnimatedGifObj(obj) {
+  return shouldRenderViaOverlay(obj)
+    && obj.url.toLowerCase().endsWith(".gif");
 }
 
 
@@ -153,7 +162,7 @@ export function syncGifLayer(rect) {
   const sorted = [...state.room.objects].sort((a, b) => a.layer - b.layer);
   for (const obj of sorted) {
     if (obj.hidden) continue;
-    if (!isAnimatedGifObj(obj)) continue;
+    if (!shouldRenderViaOverlay(obj)) continue;
 
     let wrap = _wraps.get(obj.id);
     let img  = _imgs.get(obj.id);

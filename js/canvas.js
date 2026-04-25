@@ -19,7 +19,11 @@ import {
 import { getMode, refreshForSelection, setMode } from "./panel.js";
 import { nextRoom, prevRoom } from "./rooms.js";
 import { warpImage } from "./homography.js";
-import { isAnimatedGifObj, syncGifLayer } from "./gif_layer.js";
+import {
+  isAnimatedGifObj,
+  shouldRenderViaOverlay,
+  syncGifLayer,
+} from "./gif_layer.js";
 
 
 let canvas = null;
@@ -274,10 +278,11 @@ export function render() {
   ctx.translate(offsetX, offsetY);
   ctx.scale(fit, fit);
   for (const obj of objectsByLayerAsc()) {
-    // Animated GIFs render through the DOM overlay (canvas drawImage
-    // would only paint frame 0). Warped GIFs fall back to canvas — see
-    // isAnimatedGifObj for the routing rule.
-    if (isAnimatedGifObj(obj)) continue;
+    // Every non-warped item routes to the DOM overlay so CSS z-index
+    // can interleave PNGs and GIFs together by obj.layer. Only warped
+    // items stay on canvas — they need the pixel-remap pipeline that
+    // CSS doesn't replicate.
+    if (shouldRenderViaOverlay(obj)) continue;
     _drawObject(obj);
   }
   // Sub-tool handles for the selected item (shear / warp).
