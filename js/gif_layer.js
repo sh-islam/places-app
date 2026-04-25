@@ -197,20 +197,37 @@ export function syncGifLayer(rect) {
       continue;
     }
     wrap.style.visibility = "";
-    img.style.width  = w + "px";
-    img.style.height = h + "px";
-    img.style.transform = _buildMatrix(obj, w, h, rect);
-    // Per-item colour adjustments ride the img (they affect the
-    // displayed pixels of the image itself).
-    img.style.filter = _imgFilter(obj);
-    // Selection drop-shadow rides the NON-TRANSFORMED wrapper so
-    // the 54-CSS-px halo doesn't get shrunk/stretched by the img's
-    // transform — visible halo is constant for tiny and huge items
-    // alike, matching the canvas PNG path.
-    wrap.style.filter = _wrapFilter(state.selectedIds.has(obj.id));
-    // Stamp obj.layer as z-index on the WRAPPER so GIF-vs-GIF
-    // ordering within the overlay honours bringForward/sendBackward.
-    wrap.style.zIndex = String(obj.layer);
+    // Diff every per-frame style write against the value we last
+    // applied (cached on dataset attributes) and only call the
+    // setter when it actually changes. Without this, dragging one
+    // item kicks ~60 setProperty calls per second × every overlay
+    // item × 4 properties — costly on N-many-item rooms and the
+    // root cause of slow drag feel after PNGs joined the overlay.
+    const tx  = _buildMatrix(obj, w, h, rect);
+    const flt = _imgFilter(obj);
+    const wfl = _wrapFilter(state.selectedIds.has(obj.id));
+    const z   = String(obj.layer);
+    const wPx = w + "px";
+    const hPx = h + "px";
+
+    if (img.dataset.w !== wPx) {
+      img.style.width = wPx;  img.dataset.w = wPx;
+    }
+    if (img.dataset.h !== hPx) {
+      img.style.height = hPx; img.dataset.h = hPx;
+    }
+    if (img.dataset.tx !== tx) {
+      img.style.transform = tx;  img.dataset.tx = tx;
+    }
+    if (img.dataset.flt !== flt) {
+      img.style.filter = flt;    img.dataset.flt = flt;
+    }
+    if (wrap.dataset.flt !== wfl) {
+      wrap.style.filter = wfl;   wrap.dataset.flt = wfl;
+    }
+    if (wrap.dataset.z !== z) {
+      wrap.style.zIndex = z;     wrap.dataset.z = z;
+    }
 
     seen.add(obj.id);
   }

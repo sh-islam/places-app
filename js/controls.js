@@ -35,7 +35,7 @@ import { initJoystick } from "./joystick.js";
 
 
 // Joystick movement: how many CSS pixels per frame at full deflection.
-const JOY_MAX_PX_PER_FRAME = 6;
+const JOY_MAX_PX_PER_FRAME = 12;
 // D-pad single-click step distance (CSS pixels in world space).
 const DPAD_STEP_PX = 16;
 
