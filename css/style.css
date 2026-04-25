@@ -1902,6 +1902,14 @@ body.sel-is-multi #rename-btn {
 }
 .adv-status.ok  { color: #7fd07f; }
 .adv-status.err { color: #e08585; }
+.adv-status-line { font-weight: 500; }
+.adv-status-sub  {
+  font-size: 11px;
+  opacity: 0.65;
+  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  word-break: break-all;
+}
 
 /* Overlay element that sits on top of the scene canvas while editing.
    Tools parent their handles/cursors into this. Ignores pointer events

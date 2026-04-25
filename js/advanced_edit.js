@@ -137,6 +137,14 @@ async function _enter() {
   // dots) so they don't overlap the editor view. Dropped via a body
   // class so mobile and desktop layouts both inherit the change.
   document.body.classList.add("adv-editing");
+  // The non-warped item overlay (PNGs + GIFs) sits above the room
+  // canvas and would otherwise show every other room object on top
+  // of the editor preview. canvas.js render() hides it when mode ==
+  // advanced-edit, but render() doesn't fire on the mode change
+  // alone. Hide it directly here too so the editor view is clean
+  // immediately. _cleanupState restores it on exit.
+  const gifLayer = document.getElementById("gif-layer");
+  if (gifLayer) gifLayer.style.display = "none";
   const { setMode } = await import("./panel.js");
   setMode("advanced-edit");
   _setTool(null);
@@ -177,6 +185,12 @@ function _cleanupState() {
   _dirty = false;
   _renderFit = null;
   document.body.classList.remove("adv-editing");
+  // Restore the gif/PNG overlay we hid on _open. Canvas.js render
+  // also resets display:"" outside advanced-edit mode, but doing it
+  // here covers the case where the user backs out before any other
+  // render() trigger fires.
+  const gifLayer = document.getElementById("gif-layer");
+  if (gifLayer) gifLayer.style.display = "";
   for (const btn of document.querySelectorAll(".adv-tool-btn")) {
     btn.classList.remove("active");
   }
@@ -241,7 +255,10 @@ async function _save() {
     // state. The top-level SAVE button is for room changes; calling
     // markDirty() would make it blink red after every image edit,
     // misleading the admin into thinking the room needs saving.
-    _setStatus(`Overwritten ${_sourceUrl}`, "ok");
+    // Top line: short human label. Sub-line: the actual git commit
+    // message the autocommit landed, so the admin sees what's now in
+    // the repo log without leaving the editor.
+    _setStatus(`Overwritten ${_sourceUrl}`, "ok", res.commit_message);
   } catch (err) {
     _setStatus(`Save failed: ${err.message}`, "err");
   } finally {
@@ -295,8 +312,11 @@ async function _saveCopy() {
     if (!blob) throw new Error("toBlob failed");
     // overwrite stays off so the backend auto-bumps to _N+1 if the
     // frontend guess happened to collide (another admin just uploaded).
+    // sourceUrl tags the autocommit so the message reads
+    // "admin created new: <src> -> <dest>" instead of plain "uploaded".
     const res = await api.uploadCatalogItem({
       image: blob, category: cat, subcategory: sub, name, overwrite: false,
+      sourceUrl: _sourceUrl,
     });
 
     // Refresh catalog state so the new item appears in the drawer.
@@ -307,7 +327,7 @@ async function _saveCopy() {
     rebuildCatalog();
 
     _closeCopyForm();
-    _setStatus(`Copy saved to ${res.url}`, "ok");
+    _setStatus(`Copy saved to ${res.url}`, "ok", res.commit_message);
   } catch (err) {
     _setStatus(`Copy failed: ${err.message}`, "err");
   } finally {
@@ -424,9 +444,24 @@ function _updateSaveButton() {
 }
 
 
-function _setStatus(msg, kind /* "ok" | "err" | null */) {
+function _setStatus(msg, kind /* "ok" | "err" | null */, sub) {
   if (!_statusEl) return;
-  _statusEl.textContent = msg || "";
+  // Top line is the human-readable status; optional sub-line is the
+  // git commit message (returned by the backend after each successful
+  // catalog mutation) so the admin can see what just hit the repo log.
+  _statusEl.innerHTML = "";
+  if (msg) {
+    const top = document.createElement("div");
+    top.className = "adv-status-line";
+    top.textContent = msg;
+    _statusEl.appendChild(top);
+  }
+  if (sub) {
+    const sm = document.createElement("div");
+    sm.className = "adv-status-sub";
+    sm.textContent = sub;
+    _statusEl.appendChild(sm);
+  }
   _statusEl.classList.toggle("ok",  kind === "ok");
   _statusEl.classList.toggle("err", kind === "err");
 }

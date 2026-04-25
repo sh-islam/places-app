@@ -95,13 +95,17 @@ export const api = {
       image_base64: imageBase64,
     }),
 
-  uploadCatalogItem: async ({ image, category, subcategory, name, overwrite }) => {
+  uploadCatalogItem: async ({ image, category, subcategory, name, overwrite, sourceUrl }) => {
     const fd = new FormData();
     fd.append("image", image, `${name}.png`);
     fd.append("category", category);
     fd.append("subcategory", subcategory);
     fd.append("name", name);
     if (overwrite) fd.append("overwrite", "1");
+    // Tag the upload as a "save as new" copy so the backend's
+    // autocommit message says "admin created new: <src> -> <dest>"
+    // instead of the plain "admin uploaded: <dest>".
+    if (sourceUrl) fd.append("source_url", sourceUrl);
     const res = await fetch(url("/api/catalog/upload"), {
       method: "POST",
       credentials: "include",

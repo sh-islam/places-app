@@ -545,22 +545,16 @@ function _drawObject(obj) {
     ctx.transform(1, sh.ky || 0, sh.kx || 0, 1, 0, 0);
   }
 
-  // Selected item: two-pass accent-tinted shadow that matches the
-  // GIF overlay's drop-shadow pair — tight 20-px inner for a bright
-  // edge + wide 54-px outer for PNG-like reach, both at alpha 0.5.
-  // Canvas shadowBlur ignores the current transform and is always
-  // in backing pixels, so multiply by dpr to keep the halo at 20 /
-  // 54 CSS px regardless of device. We drawImage twice: first with
-  // the wide shadow, then with the tight shadow — both shadows land
-  // behind the image at the silhouette and combine into the same
-  // edge-bright, reach-matched glow GIFs get.
-  const isSelected = state.selectedIds.has(obj.id);
-  if (isSelected) {
+  // Selected item: simple single-pass accent-tinted shadow that
+  // hugs the image's alpha silhouette. Reverted from the two-pass
+  // bright-edge variant after that introduced trailing artifacts
+  // on canvas during drag and felt sluggish. shadowBlur is in
+  // backing pixels (ignores the transform) so multiply by dpr to
+  // keep the halo a consistent 27 CSS px wide on every device.
+  if (state.selectedIds.has(obj.id)) {
     const dpr = window.devicePixelRatio || 1;
-    ctx.shadowColor = "rgba(80, 150, 255, 0.67)";
-    ctx.shadowBlur = 54 * dpr;
-    ctx.drawImage(source, -w / 2, -h / 2, w, h);
-    ctx.shadowBlur = 20 * dpr;
+    ctx.shadowColor = "rgba(80, 150, 255, 0.93)";
+    ctx.shadowBlur = 27 * dpr;
   }
   ctx.drawImage(source, -w / 2, -h / 2, w, h);
   ctx.restore();

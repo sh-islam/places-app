@@ -138,15 +138,12 @@ function _imgFilter(obj) {
 // A fully-opaque (alpha 1) and slightly-more-saturated-blue swatch
 // lands on the same "blue glow" impression as the canvas PNGs.
 function _wrapFilter(selected) {
-  // Two passes with different radii: a tight 20-px inner shadow
-  // adds density right at the silhouette edge (reads as a bright
-  // blue outline), and a 54-px outer shadow extends the halo the
-  // same distance as the canvas PNG glow. Net effect is a stronger
-  // glow at the item's edge without the halo reaching further out
-  // than the PNG selection does.
+  // Simple single-pass drop-shadow matching the canvas PNG path
+  // (shadowBlur=27*dpr, alpha 0.93). Reverted from the two-pass
+  // bright-edge variant — that one was strong but caused drag
+  // trails on canvas, and the user wants the original behaviour.
   return selected
-    ? "drop-shadow(0 0 20px rgba(80, 150, 255, 0.9))"
-      + " drop-shadow(0 0 54px rgba(80, 150, 255, 0.9))"
+    ? "drop-shadow(0 0 27px rgba(80, 150, 255, 0.93))"
     : "";
 }
 
