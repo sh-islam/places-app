@@ -53,6 +53,11 @@ export function initCatalog(els) {
 
 function _setSortMode(mode) {
   _sortMode = mode;
+  // Default direction so the arrow reads ↓ in both modes — i.e. the
+  // "natural" expectation for each: A→Z for alpha (asc) and
+  // newest-first for time (desc). Users can still flip with the
+  // direction button after switching modes.
+  _sortDir = mode === "time" ? "desc" : "asc";
   _syncSortButtons();
   renderCatalog();
 }
