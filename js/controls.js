@@ -132,25 +132,17 @@ function _initSubTools() {
     render();
   });
 
-  // Reset: scoped to whichever sub-tool is active AND also zeros the
-  // rotation so "Reset" feels like a full transform reset rather than
-  // a no-op when no sub-tool is active. Scale and position are left
-  // alone (use Revert for a full-object wipe).
+  // Reset: full per-item revert to the pre-EDIT-mode snapshot. Position,
+  // scale, rotation, layer, adjustments, shear, warp — everything that
+  // was different at the moment EDIT was tapped goes back. Doesn't
+  // touch other items in the room (the panel-header RESET handles that
+  // with a confirm + reload-from-server path).
   resetBtn.addEventListener("click", () => {
     const id = state.selectedId;
     const obj = id ? findObject(id) : null;
     if (!obj) return;
-    if (obj.rotation_z !== 0) {
-      obj.rotation_z = 0;
-      markDirty();
-    }
-    if (state.editSubTool === "shear" && obj.shear) {
-      delete obj.shear;
-      markDirty();
-    } else if (state.editSubTool === "warp" && obj.warp) {
-      delete obj.warp;
-      markDirty();
-    }
+    if (!_objectModifiedSinceSnapshot(obj)) return;
+    revertObject(id);
     _syncSliderFromObject();
     _syncRevertEnabled();
     render();
