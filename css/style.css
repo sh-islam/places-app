@@ -534,7 +534,16 @@ code { background: #15171a; padding: 1px 5px; border-radius: 4px; font-size: 12p
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* filter set in JS on selection (drop-shadow for the glow). */
+  /* filter set in JS on selection (drop-shadow for the glow).
+     Hint the compositor that filter + transform change frequently
+     so the drop-shadow's painted region invalidates cleanly when
+     the inner img moves — without this, dragging a selected GIF
+     leaves a "ghost trail" of the previous halo on some browsers
+     because the filter buffer is reused without a full repaint.
+     translateZ promotes the wrapper to its own GPU layer which
+     forces the trail-prone repaint path off. */
+  will-change: filter, transform;
+  transform: translateZ(0);
 }
 .gif-layer img {
   position: absolute;
