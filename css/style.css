@@ -1730,7 +1730,15 @@ body.adv-editing .adv-zoom-controls { display: flex; }
    as a static PNG — which the backend refuses on .gif targets.
    Hide those affordances entirely when the current selection is a
    .gif so users don't hit dead-end buttons. */
-body.sel-is-gif #subtool-shear-btn,
+/* GIFs can carry shear: kx/ky live in the CSS matrix the overlay
+   builds, so the GIF stays animated AND sheared once the sub-tool
+   deactivates. While the sub-tool is ACTIVE the GIF temporarily
+   routes to canvas (handles on top, frame 0 visible); when the
+   user clicks DONE the routing flips back to overlay and animation
+   resumes with the shear applied — fully reversible. Warp + the
+   advanced editor stay hidden because they really would lose
+   animation permanently (no CSS warp, advanced editor outputs
+   a static PNG and the backend refuses .gif overwrites). */
 body.sel-is-gif #subtool-warp-btn,
 body.sel-is-gif #advanced-btn {
   display: none;

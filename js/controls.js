@@ -190,13 +190,25 @@ function _initRenameButton() {
     const obj = id ? findObject(id) : null;
     if (!obj) return;
     const current = (obj.name || "");
+    // Strip any extension the user types (".gif", ".png" etc.) so the
+    // cleanup pass doesn't mangle the dot into nothing and leave a
+    // trailing "gif"/"png" baked into the filename. Backend always
+    // preserves the original file extension, so the user only needs
+    // to give the bare name.
+    const ext = (obj.url || "").toLowerCase().match(/\.(gif|png|jpe?g|webp)$/)?.[0] || "";
     const input = window.prompt(
-      "New name (lowercase, spaces become underscores):",
+      ext
+        ? `New name (lowercase, underscores; ${ext} kept automatically):`
+        : "New name (lowercase, spaces become underscores):",
       current
     );
     if (!input) return;
-    const newName = input.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-    if (!newName || newName === current) return;
+    const cleaned = input.trim().toLowerCase()
+      .replace(/\.(gif|png|jpe?g|webp)$/i, "")  // drop any typed extension
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9_]/g, "");
+    if (!cleaned || cleaned === current) return;
+    const newName = cleaned;
     const oldUrl = obj.url;
     try {
       const { url: newUrl, name, asset_id } =
